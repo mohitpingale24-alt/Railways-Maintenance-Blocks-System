@@ -1,0 +1,464 @@
+{
+  "feature_importance": [
+    0.0,
+    0.0059569816946845105,
+    0.000780241036891187,
+    0.0591448721034089,
+    0.47583907491963817,
+    0.0,
+    0.04547052535115786,
+    0.0796678132390519,
+    0.0039467207091205755,
+    0.01669104065924223,
+    0.0,
+    0.0,
+    0.0,
+    0.2788576362718021,
+    0.033645094015002604
+  ],
+  "feature_importance_features": [
+    "age_years",
+    "previous_defects",
+    "overdue_days",
+    "traffic_load",
+    "deterioration",
+    "weather_stress",
+    "last_maintenance_days",
+    "inspection_measurement",
+    "department_index",
+    "deterioration_delta_1m",
+    "measurement_delta_1m",
+    "defects_delta_1m",
+    "defects_delta_3m",
+    "deterioration_mean_3m",
+    "last_maintenance_delta_1m"
+  ],
+  "version": "mh-lifecycle-v1",
+  "seed": 26092,
+  "provenance": "SYNTHETIC lifecycle training/evaluation; no established real Indian Railway accuracy",
+  "features": [
+    "age_years",
+    "previous_defects",
+    "overdue_days",
+    "traffic_load",
+    "deterioration",
+    "weather_stress",
+    "last_maintenance_days",
+    "inspection_measurement",
+    "department_index"
+  ],
+  "engineered_features": [
+    "deterioration_delta_1m",
+    "measurement_delta_1m",
+    "defects_delta_1m",
+    "defects_delta_3m",
+    "deterioration_mean_3m",
+    "last_maintenance_delta_1m"
+  ],
+  "training_rows": 187200,
+  "validation_rows": 9600,
+  "test_rows": 9600,
+  "split": {
+    "asset_disjoint": true,
+    "train_months": [
+      0,
+      25
+    ],
+    "validation_months": [
+      30,
+      33
+    ],
+    "test_months": [
+      38,
+      41
+    ],
+    "purge_days": 120
+  },
+  "risk": [
+    {
+      "horizon_days": 7,
+      "selected": "Logistic regression",
+      "feature_set": "engineered",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.6606655237995533,
+      "brier": 0.004967316734124542,
+      "prevalence": 0.005,
+      "calibration": [
+        {
+          "lower": 0.0,
+          "count": 9600,
+          "predicted": 0.0057010966388217335,
+          "observed": 0.005
+        }
+      ]
+    },
+    {
+      "horizon_days": 30,
+      "selected": "Gradient boosting leaves 7",
+      "feature_set": "engineered",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.6427988393577844,
+      "brier": 0.027331183374408485,
+      "prevalence": 0.028333333333333332,
+      "calibration": [
+        {
+          "lower": 0.0,
+          "count": 9587,
+          "predicted": 0.027005180042405548,
+          "observed": 0.02826744549911338
+        },
+        {
+          "lower": 0.1,
+          "count": 13,
+          "predicted": 0.1250100825600727,
+          "observed": 0.07692307692307693
+        }
+      ]
+    },
+    {
+      "horizon_days": 90,
+      "selected": "Logistic regression",
+      "feature_set": "poly",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.6060425900284843,
+      "brier": 0.07597837964562144,
+      "prevalence": 0.08375,
+      "calibration": [
+        {
+          "lower": 0.0,
+          "count": 7273,
+          "predicted": 0.06895421824403794,
+          "observed": 0.07328475182180669
+        },
+        {
+          "lower": 0.1,
+          "count": 2327,
+          "predicted": 0.11920639586917875,
+          "observed": 0.11645896003437903
+        }
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "horizon": 7,
+      "model": "Logistic regression",
+      "feature_set": "base",
+      "validation_brier": 0.0053792111575603485
+    },
+    {
+      "horizon": 7,
+      "model": "Logistic regression",
+      "feature_set": "poly",
+      "validation_brier": 0.005381124094128609
+    },
+    {
+      "horizon": 7,
+      "model": "Decision tree depth 5",
+      "feature_set": "base",
+      "validation_brier": 0.005394088284154182
+    },
+    {
+      "horizon": 7,
+      "model": "Random forest depth 8",
+      "feature_set": "base",
+      "validation_brier": 0.005387216982549749
+    },
+    {
+      "horizon": 7,
+      "model": "Random forest tuned (depth 10, leaf 20, sqrt)",
+      "feature_set": "base",
+      "validation_brier": 0.00538815196105507
+    },
+    {
+      "horizon": 7,
+      "model": "Gradient boosting leaves 7",
+      "feature_set": "base",
+      "validation_brier": 0.005383148072613867
+    },
+    {
+      "horizon": 7,
+      "model": "Gradient boosting leaves 15",
+      "feature_set": "base",
+      "validation_brier": 0.005383276646589774
+    },
+    {
+      "horizon": 7,
+      "model": "Logistic regression",
+      "feature_set": "engineered",
+      "validation_brier": 0.005378879606723785
+    },
+    {
+      "horizon": 7,
+      "model": "Random forest tuned (depth 10, leaf 20, sqrt)",
+      "feature_set": "engineered",
+      "validation_brier": 0.005385671683865132
+    },
+    {
+      "horizon": 7,
+      "model": "Gradient boosting leaves 7",
+      "feature_set": "engineered",
+      "validation_brier": 0.0053829564989443714
+    },
+    {
+      "horizon": 7,
+      "model": "XGBoost classifier (depth 4, lr .05, 300 trees)",
+      "feature_set": "base",
+      "validation_brier": 0.005390566308051348
+    },
+    {
+      "horizon": 7,
+      "model": "XGBoost classifier (depth 3, lr .03, 500 trees)",
+      "feature_set": "base",
+      "validation_brier": 0.005386839155107737
+    },
+    {
+      "horizon": 7,
+      "model": "XGBoost classifier (depth 4, lr .05, 300 trees)",
+      "feature_set": "engineered",
+      "validation_brier": 0.005387939978390932
+    },
+    {
+      "horizon": 30,
+      "model": "Logistic regression",
+      "feature_set": "base",
+      "validation_brier": 0.02406952902674675
+    },
+    {
+      "horizon": 30,
+      "model": "Logistic regression",
+      "feature_set": "poly",
+      "validation_brier": 0.024027757346630096
+    },
+    {
+      "horizon": 30,
+      "model": "Decision tree depth 5",
+      "feature_set": "base",
+      "validation_brier": 0.024155621639650602
+    },
+    {
+      "horizon": 30,
+      "model": "Random forest depth 8",
+      "feature_set": "base",
+      "validation_brier": 0.024060212144986992
+    },
+    {
+      "horizon": 30,
+      "model": "Random forest tuned (depth 10, leaf 20, sqrt)",
+      "feature_set": "base",
+      "validation_brier": 0.024077191470520856
+    },
+    {
+      "horizon": 30,
+      "model": "Gradient boosting leaves 7",
+      "feature_set": "base",
+      "validation_brier": 0.024053053767791266
+    },
+    {
+      "horizon": 30,
+      "model": "Gradient boosting leaves 15",
+      "feature_set": "base",
+      "validation_brier": 0.02405283452845703
+    },
+    {
+      "horizon": 30,
+      "model": "Logistic regression",
+      "feature_set": "engineered",
+      "validation_brier": 0.024064891040325165
+    },
+    {
+      "horizon": 30,
+      "model": "Random forest tuned (depth 10, leaf 20, sqrt)",
+      "feature_set": "engineered",
+      "validation_brier": 0.024039459499919272
+    },
+    {
+      "horizon": 30,
+      "model": "Gradient boosting leaves 7",
+      "feature_set": "engineered",
+      "validation_brier": 0.024040524579346592
+    },
+    {
+      "horizon": 30,
+      "model": "XGBoost classifier (depth 4, lr .05, 300 trees)",
+      "feature_set": "base",
+      "validation_brier": 0.02410036139190197
+    },
+    {
+      "horizon": 30,
+      "model": "XGBoost classifier (depth 3, lr .03, 500 trees)",
+      "feature_set": "base",
+      "validation_brier": 0.024079425260424614
+    },
+    {
+      "horizon": 30,
+      "model": "XGBoost classifier (depth 4, lr .05, 300 trees)",
+      "feature_set": "engineered",
+      "validation_brier": 0.024075504392385483
+    },
+    {
+      "horizon": 90,
+      "model": "Logistic regression",
+      "feature_set": "base",
+      "validation_brier": 0.06526975333690643
+    },
+    {
+      "horizon": 90,
+      "model": "Logistic regression",
+      "feature_set": "poly",
+      "validation_brier": 0.0649607852101326
+    },
+    {
+      "horizon": 90,
+      "model": "Decision tree depth 5",
+      "feature_set": "base",
+      "validation_brier": 0.06517203354333037
+    },
+    {
+      "horizon": 90,
+      "model": "Random forest depth 8",
+      "feature_set": "base",
+      "validation_brier": 0.06505394627074615
+    },
+    {
+      "horizon": 90,
+      "model": "Random forest tuned (depth 10, leaf 20, sqrt)",
+      "feature_set": "base",
+      "validation_brier": 0.06512189380457993
+    },
+    {
+      "horizon": 90,
+      "model": "Gradient boosting leaves 7",
+      "feature_set": "base",
+      "validation_brier": 0.06505481915548093
+    },
+    {
+      "horizon": 90,
+      "model": "Gradient boosting leaves 15",
+      "feature_set": "base",
+      "validation_brier": 0.06513216284223125
+    },
+    {
+      "horizon": 90,
+      "model": "Logistic regression",
+      "feature_set": "engineered",
+      "validation_brier": 0.06520215421915054
+    },
+    {
+      "horizon": 90,
+      "model": "Random forest tuned (depth 10, leaf 20, sqrt)",
+      "feature_set": "engineered",
+      "validation_brier": 0.0649600650668743
+    },
+    {
+      "horizon": 90,
+      "model": "Gradient boosting leaves 7",
+      "feature_set": "engineered",
+      "validation_brier": 0.06499493964521452
+    },
+    {
+      "horizon": 90,
+      "model": "XGBoost classifier (depth 4, lr .05, 300 trees)",
+      "feature_set": "base",
+      "validation_brier": 0.0651460513472557
+    },
+    {
+      "horizon": 90,
+      "model": "XGBoost classifier (depth 3, lr .03, 500 trees)",
+      "feature_set": "base",
+      "validation_brier": 0.06510110199451447
+    },
+    {
+      "horizon": 90,
+      "model": "XGBoost classifier (depth 4, lr .05, 300 trees)",
+      "feature_set": "engineered",
+      "validation_brier": 0.06513635069131851
+    }
+  ],
+  "duration": {
+    "model": "XGBoost regressor (depth 4, lr .05, 400 trees) (engineered features)",
+    "mae": 9.33831339456584,
+    "rmse": 12.807232194665353,
+    "r2": 0.6902421628518656,
+    "buffer_minutes": 18.077818308444733,
+    "test_rows": 1378,
+    "candidates": [
+      {
+        "model": "Mean baseline",
+        "feature_set": "base",
+        "validation_mae": 17.65913523413404
+      },
+      {
+        "model": "Random forest",
+        "feature_set": "base",
+        "validation_mae": 10.160910631842734
+      },
+      {
+        "model": "Random forest tuned (depth 12, leaf 10)",
+        "feature_set": "base",
+        "validation_mae": 10.105406095641086
+      },
+      {
+        "model": "Gradient boosting",
+        "feature_set": "base",
+        "validation_mae": 10.108267952597366
+      },
+      {
+        "model": "Random forest",
+        "feature_set": "engineered",
+        "validation_mae": 9.572374260319872
+      },
+      {
+        "model": "Gradient boosting",
+        "feature_set": "engineered",
+        "validation_mae": 9.055499299321193
+      },
+      {
+        "model": "XGBoost regressor (depth 4, lr .05, 400 trees)",
+        "feature_set": "base",
+        "validation_mae": 10.147577864732666
+      },
+      {
+        "model": "XGBoost regressor (depth 4, lr .05, 400 trees)",
+        "feature_set": "engineered",
+        "validation_mae": 9.005440499246042
+      },
+      {
+        "model": "XGBoost regressor (depth 5, lr .03, 600 trees)",
+        "feature_set": "engineered",
+        "validation_mae": 9.024542370303825
+      }
+    ]
+  },
+  "severity": "Observed simulated inspection evidence; separate severity model not trained",
+  "selection": "Validation Brier / duration MAE with pre-set meaningful-improvement margins over the incumbent configuration; Brier ties within 0.5% are broken by validation ROC-AUC; test used once after selection",
+  "counts": {
+    "requests": 500000,
+    "assets": 12000,
+    "inspections": 576000,
+    "completed_maintenance": 74450,
+    "failure_events": 15302,
+    "pending": 12000,
+    "departments": {
+      "TRK": {
+        "requests": 166667,
+        "history": 192000
+      },
+      "SIG": {
+        "requests": 166667,
+        "history": 192000
+      },
+      "TRC": {
+        "requests": 166666,
+        "history": 192000
+      }
+    }
+  },
+  "model_sha256": "96dd239dc868e160077e8a2af0d4962828c12112815f643cb0e6568f1584ca0a"
+}

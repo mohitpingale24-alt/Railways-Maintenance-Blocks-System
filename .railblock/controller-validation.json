@@ -1,0 +1,675 @@
+{
+  "model_sha256": "015cf3e33dcf2bc4d4d50ace2f936c177b92d01c6270c22481b3d07e1d878612",
+  "zones": [
+    {
+      "zone": "Z1",
+      "requests_tested": 28,
+      "feasible": {
+        "status": "OPTIMAL",
+        "scheduled": 18,
+        "blocks": 17,
+        "shared": 1,
+        "sample_slot": {
+          "id": "CAND-MH-SEC-01-01-01",
+          "date": "2026-11-18",
+          "section": "MH-SEC-01",
+          "start": 0,
+          "end": 360,
+          "available_duration": 360,
+          "allocated_start": 0,
+          "allocated_end": 190,
+          "allocated_duration": 190,
+          "estimated_work_duration": 180,
+          "predicted_duration": 158,
+          "uncertainty_buffer": 21.3,
+          "task_durations": [
+            {
+              "id": "SYN-MH-0499069",
+              "predicted": 158,
+              "uncertainty_buffer": 21.3,
+              "required": 180
+            }
+          ],
+          "setup_minutes": 10,
+          "conflicting_trains": [],
+          "boundary_trains": [],
+          "scenario_conflicts": [],
+          "eligibility_conditions": [
+            "The complete estimated work plus 10-minute setup fits in this candidate gap.",
+            "The request section and line match the selected route; the CP-SAT feasibility audit passed crew, equipment, power, dependency and compatibility constraints.",
+            "Listed timetable movements and 5-minute headways are protected; conflicting listed trains: none in the selected reference set.",
+            "Coverage is incomplete. This is a conditional candidate, not an authorized track possession or operating clearance."
+          ],
+          "provenance": "SIMULATED candidate gap derived from the selected timetable references"
+        },
+        "audit_errors": []
+      },
+      "infeasible": {
+        "status": "OPTIMAL",
+        "scheduled": 0,
+        "deferred": 28,
+        "condition": "Synthetic full-horizon traffic closure; optional tasks must all defer"
+      },
+      "crew_zero": {
+        "scheduled": 0
+      }
+    },
+    {
+      "zone": "Z2",
+      "requests_tested": 28,
+      "feasible": {
+        "status": "FEASIBLE",
+        "scheduled": 10,
+        "blocks": 10,
+        "shared": 0,
+        "sample_slot": {
+          "id": "CAND-MH-SEC-05-01-01",
+          "date": "2026-11-18",
+          "section": "MH-SEC-05",
+          "start": 0,
+          "end": 360,
+          "available_duration": 360,
+          "allocated_start": 0,
+          "allocated_end": 209,
+          "allocated_duration": 209,
+          "estimated_work_duration": 199,
+          "predicted_duration": 177,
+          "uncertainty_buffer": 21.3,
+          "task_durations": [
+            {
+              "id": "SYN-MH-0491414",
+              "predicted": 177,
+              "uncertainty_buffer": 21.3,
+              "required": 199
+            }
+          ],
+          "setup_minutes": 10,
+          "conflicting_trains": [],
+          "boundary_trains": [],
+          "scenario_conflicts": [],
+          "eligibility_conditions": [
+            "The complete estimated work plus 10-minute setup fits in this candidate gap.",
+            "The request section and line match the selected route; the CP-SAT feasibility audit passed crew, equipment, power, dependency and compatibility constraints.",
+            "Listed timetable movements and 5-minute headways are protected; conflicting listed trains: none in the selected reference set.",
+            "Coverage is incomplete. This is a conditional candidate, not an authorized track possession or operating clearance."
+          ],
+          "provenance": "SIMULATED candidate gap derived from the selected timetable references"
+        },
+        "audit_errors": []
+      },
+      "infeasible": {
+        "status": "OPTIMAL",
+        "scheduled": 0,
+        "deferred": 28,
+        "condition": "Synthetic full-horizon traffic closure; optional tasks must all defer"
+      },
+      "crew_zero": {
+        "scheduled": 0
+      }
+    },
+    {
+      "zone": "Z3",
+      "requests_tested": 28,
+      "feasible": {
+        "status": "FEASIBLE",
+        "scheduled": 11,
+        "blocks": 10,
+        "shared": 1,
+        "sample_slot": {
+          "id": "CAND-MH-SEC-09-01-01",
+          "date": "2026-11-18",
+          "section": "MH-SEC-09",
+          "start": 0,
+          "end": 360,
+          "available_duration": 360,
+          "allocated_start": 0,
+          "allocated_end": 209,
+          "allocated_duration": 209,
+          "estimated_work_duration": 199,
+          "predicted_duration": 177,
+          "uncertainty_buffer": 21.3,
+          "task_durations": [
+            {
+              "id": "SYN-MH-0498752",
+              "predicted": 177,
+              "uncertainty_buffer": 21.3,
+              "required": 199
+            },
+            {
+              "id": "SYN-MH-0493678",
+              "predicted": 159,
+              "uncertainty_buffer": 21.3,
+              "required": 181
+            }
+          ],
+          "setup_minutes": 10,
+          "conflicting_trains": [],
+          "boundary_trains": [],
+          "scenario_conflicts": [],
+          "eligibility_conditions": [
+            "The complete estimated work plus 10-minute setup fits in this candidate gap.",
+            "The request section and line match the selected route; the CP-SAT feasibility audit passed crew, equipment, power, dependency and compatibility constraints.",
+            "Listed timetable movements and 5-minute headways are protected; conflicting listed trains: none in the selected reference set.",
+            "Coverage is incomplete. This is a conditional candidate, not an authorized track possession or operating clearance."
+          ],
+          "provenance": "SIMULATED candidate gap derived from the selected timetable references"
+        },
+        "audit_errors": []
+      },
+      "infeasible": {
+        "status": "OPTIMAL",
+        "scheduled": 0,
+        "deferred": 28,
+        "condition": "Synthetic full-horizon traffic closure; optional tasks must all defer"
+      },
+      "crew_zero": {
+        "scheduled": 0
+      }
+    },
+    {
+      "zone": "Z4",
+      "requests_tested": 28,
+      "feasible": {
+        "status": "FEASIBLE",
+        "scheduled": 13,
+        "blocks": 12,
+        "shared": 1,
+        "sample_slot": {
+          "id": "CAND-MH-SEC-14-01-01",
+          "date": "2026-11-18",
+          "section": "MH-SEC-14",
+          "start": 0,
+          "end": 360,
+          "available_duration": 360,
+          "allocated_start": 0,
+          "allocated_end": 192,
+          "allocated_duration": 192,
+          "estimated_work_duration": 182,
+          "predicted_duration": 160,
+          "uncertainty_buffer": 21.3,
+          "task_durations": [
+            {
+              "id": "SYN-MH-0492952",
+              "predicted": 160,
+              "uncertainty_buffer": 21.3,
+              "required": 182
+            }
+          ],
+          "setup_minutes": 10,
+          "conflicting_trains": [],
+          "boundary_trains": [],
+          "scenario_conflicts": [],
+          "eligibility_conditions": [
+            "The complete estimated work plus 10-minute setup fits in this candidate gap.",
+            "The request section and line match the selected route; the CP-SAT feasibility audit passed crew, equipment, power, dependency and compatibility constraints.",
+            "Listed timetable movements and 5-minute headways are protected; conflicting listed trains: none in the selected reference set.",
+            "Coverage is incomplete. This is a conditional candidate, not an authorized track possession or operating clearance."
+          ],
+          "provenance": "SIMULATED candidate gap derived from the selected timetable references"
+        },
+        "audit_errors": []
+      },
+      "infeasible": {
+        "status": "OPTIMAL",
+        "scheduled": 0,
+        "deferred": 28,
+        "condition": "Synthetic full-horizon traffic closure; optional tasks must all defer"
+      },
+      "crew_zero": {
+        "scheduled": 0
+      }
+    }
+  ],
+  "matrix": [
+    {
+      "zone": "Z1",
+      "department": "TRK",
+      "pending": 633,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z1",
+      "department": "SIG",
+      "pending": 633,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z1",
+      "department": "TRC",
+      "pending": 633,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z2",
+      "department": "TRK",
+      "pending": 1055,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z2",
+      "department": "SIG",
+      "pending": 1055,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z2",
+      "department": "TRC",
+      "pending": 1055,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z3",
+      "department": "TRK",
+      "pending": 1052,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z3",
+      "department": "SIG",
+      "pending": 1052,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z3",
+      "department": "TRC",
+      "pending": 1052,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z4",
+      "department": "TRK",
+      "pending": 1260,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z4",
+      "department": "SIG",
+      "pending": 1260,
+      "verified_requests": 15
+    },
+    {
+      "zone": "Z4",
+      "department": "TRC",
+      "pending": 1260,
+      "verified_requests": 15
+    }
+  ],
+  "changes": {
+    "batches_Z1": {
+      "pending": 1899,
+      "covered": 1899,
+      "batches": 7
+    },
+    "batches_Z2": {
+      "pending": 3165,
+      "covered": 3165,
+      "batches": 11
+    },
+    "batches_Z3": {
+      "pending": 3156,
+      "covered": 3156,
+      "batches": 11
+    },
+    "batches_Z4": {
+      "pending": 3780,
+      "covered": 3780,
+      "batches": 13
+    },
+    "request_inputs": {
+      "request": "SYN-MH-0499069",
+      "baseline_scheduled": 12,
+      "changed_scheduled": 10,
+      "weights_scheduled": 12,
+      "priority_before": 68.2,
+      "priority_after": 5.8,
+      "duration_before": 180,
+      "duration_after": 1462,
+      "crew_before": 2,
+      "crew_after": 100,
+      "solver_reexecuted": true
+    },
+    "corridor_recomputed": true,
+    "priority_competition": {
+      "passed": true,
+      "baseline": {
+        "selected": [
+          "SYN-MH-0499069"
+        ],
+        "priorities": {
+          "SYN-MH-0499069": 68.2,
+          "SYN-MH-0491230": 66.6
+        },
+        "solver": "OPTIMAL"
+      },
+      "reweighted": {
+        "selected": [
+          "SYN-MH-0491230"
+        ],
+        "priorities": {
+          "SYN-MH-0491230": 7.0,
+          "SYN-MH-0499069": 5.8
+        },
+        "solver": "OPTIMAL"
+      },
+      "fixture": "Two genuine model-scored requests, equal 202-minute buffered durations, one synthetic available slot; weights changed from default to 100% predicted 30-day risk."
+    }
+  },
+  "coverage": [
+    {
+      "corridor": "Mumbai-Kalyan",
+      "zone": "Z1",
+      "reference_services": 1,
+      "date_applicable_references": 0,
+      "unverified_service_days": 1,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Churchgate-Virar",
+      "zone": "Z1",
+      "reference_services": 1,
+      "date_applicable_references": 1,
+      "unverified_service_days": 0,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Panvel-Ratnagiri",
+      "zone": "Z1",
+      "reference_services": 1,
+      "date_applicable_references": 0,
+      "unverified_service_days": 1,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Pune-Lonavala",
+      "zone": "Z2",
+      "reference_services": 16,
+      "date_applicable_references": 6,
+      "unverified_service_days": 10,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Pune-Daund",
+      "zone": "Z2",
+      "reference_services": 16,
+      "date_applicable_references": 0,
+      "unverified_service_days": 16,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Pune-Solapur",
+      "zone": "Z2",
+      "reference_services": 1,
+      "date_applicable_references": 1,
+      "unverified_service_days": 0,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Pune-Miraj",
+      "zone": "Z2",
+      "reference_services": 10,
+      "date_applicable_references": 0,
+      "unverified_service_days": 10,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Nashik-Manmad-Bhusawal",
+      "zone": "Z3",
+      "reference_services": 1,
+      "date_applicable_references": 0,
+      "unverified_service_days": 1,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Manmad-Sambhajinagar-Nanded",
+      "zone": "Z3",
+      "reference_services": 1,
+      "date_applicable_references": 0,
+      "unverified_service_days": 1,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Bhusawal-Akola-Nagpur",
+      "zone": "Z4",
+      "reference_services": 1,
+      "date_applicable_references": 0,
+      "unverified_service_days": 1,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Nagpur-Wardha-Chandrapur",
+      "zone": "Z4",
+      "reference_services": 0,
+      "date_applicable_references": 0,
+      "unverified_service_days": 0,
+      "status": "NO retrieved timetable records",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    },
+    {
+      "corridor": "Nagpur-Gondia",
+      "zone": "Z4",
+      "reference_services": 1,
+      "date_applicable_references": 0,
+      "unverified_service_days": 1,
+      "status": "INCOMPLETE public reference",
+      "freight_complete": false,
+      "valid_for_dispatch": false
+    }
+  ],
+  "reference_count": 50,
+  "zone_summary": {
+    "zones": [
+      {
+        "id": "Z1",
+        "name": "Mumbai and Konkan",
+        "requests": 79128,
+        "pending": 1899,
+        "departments": {
+          "TRK": 633,
+          "SIG": 633,
+          "TRC": 633
+        }
+      },
+      {
+        "id": "Z2",
+        "name": "Pune and Western Maharashtra",
+        "requests": 131876,
+        "pending": 3165,
+        "departments": {
+          "TRK": 1055,
+          "SIG": 1055,
+          "TRC": 1055
+        }
+      },
+      {
+        "id": "Z3",
+        "name": "North Maharashtra and Marathwada",
+        "requests": 131496,
+        "pending": 3156,
+        "departments": {
+          "TRK": 1052,
+          "SIG": 1052,
+          "TRC": 1052
+        }
+      },
+      {
+        "id": "Z4",
+        "name": "Vidarbha",
+        "requests": 157500,
+        "pending": 3780,
+        "departments": {
+          "TRK": 1260,
+          "SIG": 1260,
+          "TRC": 1260
+        }
+      }
+    ],
+    "coverage": [
+      {
+        "corridor": "Mumbai-Kalyan",
+        "zone": "Z1",
+        "reference_services": 1,
+        "date_applicable_references": 0,
+        "unverified_service_days": 1,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Churchgate-Virar",
+        "zone": "Z1",
+        "reference_services": 1,
+        "date_applicable_references": 1,
+        "unverified_service_days": 0,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Panvel-Ratnagiri",
+        "zone": "Z1",
+        "reference_services": 1,
+        "date_applicable_references": 0,
+        "unverified_service_days": 1,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Pune-Lonavala",
+        "zone": "Z2",
+        "reference_services": 16,
+        "date_applicable_references": 6,
+        "unverified_service_days": 10,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Pune-Daund",
+        "zone": "Z2",
+        "reference_services": 16,
+        "date_applicable_references": 0,
+        "unverified_service_days": 16,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Pune-Solapur",
+        "zone": "Z2",
+        "reference_services": 1,
+        "date_applicable_references": 1,
+        "unverified_service_days": 0,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Pune-Miraj",
+        "zone": "Z2",
+        "reference_services": 10,
+        "date_applicable_references": 0,
+        "unverified_service_days": 10,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Nashik-Manmad-Bhusawal",
+        "zone": "Z3",
+        "reference_services": 1,
+        "date_applicable_references": 0,
+        "unverified_service_days": 1,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Manmad-Sambhajinagar-Nanded",
+        "zone": "Z3",
+        "reference_services": 1,
+        "date_applicable_references": 0,
+        "unverified_service_days": 1,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Bhusawal-Akola-Nagpur",
+        "zone": "Z4",
+        "reference_services": 1,
+        "date_applicable_references": 0,
+        "unverified_service_days": 1,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Nagpur-Wardha-Chandrapur",
+        "zone": "Z4",
+        "reference_services": 0,
+        "date_applicable_references": 0,
+        "unverified_service_days": 0,
+        "status": "NO retrieved timetable records",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      },
+      {
+        "corridor": "Nagpur-Gondia",
+        "zone": "Z4",
+        "reference_services": 1,
+        "date_applicable_references": 0,
+        "unverified_service_days": 1,
+        "status": "INCOMPLETE public reference",
+        "freight_complete": false,
+        "valid_for_dispatch": false
+      }
+    ],
+    "provenance": "Live counts from the local synthetic request database"
+  },
+  "unknown_operating_days_excluded": true,
+  "counts": {
+    "requests": 500000,
+    "assets": 12000,
+    "inspections": 576000,
+    "completed_maintenance": 74450,
+    "failure_events": 15302,
+    "pending": 12000,
+    "departments": {
+      "TRK": {
+        "requests": 166667,
+        "history": 192000
+      },
+      "SIG": {
+        "requests": 166667,
+        "history": 192000
+      },
+      "TRC": {
+        "requests": 166666,
+        "history": 192000
+      }
+    }
+  },
+  "passed": true
+}

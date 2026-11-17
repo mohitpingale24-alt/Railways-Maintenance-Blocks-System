@@ -1,0 +1,28 @@
+# Dependencies & Python environments
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Build output
+dist/
+.wrangler/
+tsconfig.tsbuildinfo
+
+# Local state & secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# Generated ML artifacts - regenerate deterministically with: npm run data:maharashtra
+# (simulation.sqlite alone is 240 MB, above GitHub's 100 MB per-file limit)
+.railblock/simulation.sqlite
+.railblock/simulation.pending.sqlite
+.railblock/models.joblib
+.railblock/models.pending.joblib
+.railblock/legacy-scenario-cache.pkl
+
+# OS / editor
+.DS_Store

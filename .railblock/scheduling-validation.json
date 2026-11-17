@@ -1,0 +1,76 @@
+[
+  {
+    "config": {
+      "zone": "Z4",
+      "corridor": "all",
+      "section": "all",
+      "start_date": "2026-11-18",
+      "horizon": 7,
+      "traffic_mode": "reference",
+      "resource_overrides": {},
+      "incidents": []
+    },
+    "model_sha256": "015cf3e33dcf2bc4d4d50ace2f936c177b92d01c6270c22481b3d07e1d878612",
+    "planning_batch": 300,
+    "pending": 3780,
+    "solver_status": "FEASIBLE",
+    "metrics": {
+      "tasks": 31,
+      "blocks": 25,
+      "joint_blocks": 6,
+      "possession_minutes": 4653,
+      "availability": 92.31,
+      "utilization": 94.6,
+      "planned_before_due": 31,
+      "protected_train_conflicts": 0,
+      "average_block_minutes": 186.1
+    },
+    "comparison": {
+      "tasks": 17,
+      "baseline_minutes": 3080,
+      "optimized_minutes": 3080,
+      "minutes_saved": 0,
+      "reduction": 0.0,
+      "note": "Same retained tasks in both feasible schedules. Baseline uses separate department blocks with the same solver, limits and horizon; it is not a measured human plan."
+    },
+    "unscheduled": 269,
+    "violations": []
+  },
+  {
+    "config": {
+      "zone": "Z2",
+      "corridor": "Pune-Lonavala",
+      "section": "all",
+      "start_date": "2026-11-18",
+      "horizon": 7,
+      "traffic_mode": "reference",
+      "resource_overrides": {},
+      "incidents": []
+    },
+    "model_sha256": "015cf3e33dcf2bc4d4d50ace2f936c177b92d01c6270c22481b3d07e1d878612",
+    "planning_batch": 300,
+    "pending": 633,
+    "solver_status": "OPTIMAL",
+    "metrics": {
+      "tasks": 0,
+      "blocks": 0,
+      "joint_blocks": 0,
+      "possession_minutes": 0,
+      "availability": 100.0,
+      "utilization": 0,
+      "planned_before_due": 0,
+      "protected_train_conflicts": 0,
+      "average_block_minutes": 0
+    },
+    "comparison": {
+      "tasks": 0,
+      "baseline_minutes": 0,
+      "optimized_minutes": 0,
+      "minutes_saved": 0,
+      "reduction": 0,
+      "note": "Same retained tasks in both feasible schedules. Baseline uses separate department blocks with the same solver, limits and horizon; it is not a measured human plan."
+    },
+    "unscheduled": 300,
+    "violations": []
+  }
+]

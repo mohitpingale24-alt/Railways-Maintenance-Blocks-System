@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "model_sha256": "015cf3e33dcf2bc4d4d50ace2f936c177b92d01c6270c22481b3d07e1d878612",
+  "actual_counts": {
+    "requests": 500000,
+    "assets": 12000,
+    "observations": 576000,
+    "completions": 74450
+  },
+  "recomputed_risk": [
+    {
+      "horizon_days": 7,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.599597379257398,
+      "brier": 0.004984162754333057,
+      "prevalence": 0.005,
+      "calibration": [
+        {
+          "lower": 0.0,
+          "count": 9596,
+          "predicted": 0.0065660132740257586,
+          "observed": 0.005002084201750729
+        },
+        {
+          "lower": 0.1,
+          "count": 4,
+          "predicted": 0.12458045035600662,
+          "observed": 0.0
+        }
+      ]
+    },
+    {
+      "horizon_days": 30,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.6119636641105841,
+      "brier": 0.027446036969897385,
+      "prevalence": 0.028333333333333332,
+      "calibration": [
+        {
+          "lower": 0.0,
+          "count": 9596,
+          "predicted": 0.03001786158224098,
+          "observed": 0.0283451438099208
+        },
+        {
+          "lower": 0.1,
+          "count": 4,
+          "predicted": 0.12458045035600662,
+          "observed": 0.0
+        }
+      ]
+    },
+    {
+      "horizon_days": 90,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.5771742413444374,
+      "brier": 0.07640956247960157,
+      "prevalence": 0.08375,
+      "calibration": [
+        {
+          "lower": 0.0,
+          "count": 6489,
+          "predicted": 0.06887210165150877,
+          "observed": 0.07258437355524734
+        },
+        {
+          "lower": 0.1,
+          "count": 3111,
+          "predicted": 0.12054345209452733,
+          "observed": 0.10703953712632594
+        }
+      ]
+    }
+  ],
+  "recomputed_duration": {
+    "mae": 10.43397913669264,
+    "rmse": 13.977109143645208,
+    "r2": 0.631067895257727,
+    "test_rows": 1378
+  },
+  "all_500000_score_errors": 0,
+  "invalid_provenance_or_predictions": 0,
+  "asset_cohorts": [
+    7200,
+    2400,
+    2400
+  ],
+  "asset_overlap": 0,
+  "chronological_label_windows_purged": true,
+  "features": [
+    "age_years",
+    "previous_defects",
+    "overdue_days",
+    "traffic_load",
+    "deterioration",
+    "weather_stress",
+    "last_maintenance_days",
+    "inspection_measurement",
+    "department_index"
+  ],
+  "feature_targets_present": false,
+  "reproducible_generator": true,
+  "note": "Metrics are measured on synthetic lifecycle outcomes only. No railway accuracy is established."
+}

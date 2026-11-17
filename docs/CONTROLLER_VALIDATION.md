@@ -1,0 +1,23 @@
+# Maharashtra simulation: data and model interpretation
+
+## Request counts
+
+The default generator creates 12,000 assets and 500,000 request rows from successive asset observations. Assets are allocated in repeating TRK, SIG, TRC groups; each group shares a section, making all three department counts equal in each zone. The last generated request for each asset is labeled Pending by `i + assets >= requests`; the other 488,000 rows are labeled Completed by this synthetic snapshot convention. Those status labels do not establish that every historical request corresponds to a recorded intervention. The distinct completions table contains simulated maintenance interventions. This balanced population and one-pending-per-asset rule are modeling assumptions, not observed railway demand.
+
+## Timetables and planning
+
+Coverage counts indicate corridors with at least one retrieved reference, not full train movement coverage. Listed days do not establish that a current timetable applies to the chosen date. The 00:00–06:00 planning interval is a synthetic assumption, from which selected modeled movements and headways are subtracted. Freight, intermediate movements, service changes, restrictions, and possession authorization may be missing. Every gap and resulting allocation is conditional; none establishes that a track is free.
+
+## Saved model diagnostic
+
+Run `.venv/bin/python scripts/validate-model-sensitivity.py` to compare saved-model outputs on held-out synthetic observations. Each diagnostic holds the other features constant while varying measured deterioration or days since maintenance between the 10th and 90th percentiles. Such combinations can be outside the joint training distribution and do not estimate causal effects. The script reports per-horizon mean changes and the fraction of observations that increase, decrease or stay unchanged; it does not impose monotonic predictions.
+
+The models were selected by validation Brier score and evaluated on asset-disjoint later synthetic observations with purged label windows. They are not explicitly probability-calibrated, and horizon ordering is enforced by taking the cumulative maximum of the three outputs. Calibration bins and Brier scores in `.railblock/evaluation.json` are computed after that adjustment. Inspect those bins rather than assuming calibration, especially for sparsely populated bins. Synthetic evaluation does not establish real railway accuracy. Run `.venv/bin/python scripts/validate-model-artifacts.py` to independently recompute held-out metrics and check the split, stored scores and synthetic provenance.
+
+## Probability calibration audit
+
+Run `.venv/bin/python scripts/validate-probability-calibration.py` to recompute the served risk probabilities on the 9,600 held-out observations from 2,400 test assets. It writes `.railblock/calibration-audit.json` with overall observed and predicted rates, Brier scores, log loss, a constant-rate comparator derived from the separate validation cohort, five equal-count reliability groups, and 95% asset-cluster bootstrap intervals. Multiple observations and overlapping outcome windows can refer to the same asset or failure. Resampling whole assets accounts for within-asset dependence but not shared simulation-wide effects. Intervals are diagnostic, not guarantees; the bins are descriptive and may have few failures.
+
+The 17 November 2026 audit of the saved artifact found mean predicted vs observed rates of 0.66% vs 0.50% (7-day; 48 positive observations), 3.01% vs 2.83% (30-day; 272 positives), and 8.56% vs 8.38% (90-day; 804 positives). The highest 30-day group averaged 5.11% predicted versus 3.85% observed; the highest 90-day group averaged 12.96% versus 10.42% observed. Their observed-rate cluster-bootstrap intervals were 3.07%–4.81% and 8.71%–12.36%, respectively. This shows potentially consequential overprediction in the high-risk groups under this synthetic test distribution, despite close overall averages. The 7-day model has few positive observations, so group-level conclusions are particularly uncertain.
+
+The displayed output applies a cumulative maximum to enforce increasing horizon risks. In this test it changed 4 of 9,600 30-day probabilities and 96 of 9,600 90-day probabilities. The report measures Brier scores before and after this adjustment. No calibration mapping was fitted to test outcomes and no production model or prediction was altered by the audit. A prospective recalibration would require fitting on separate calibration data, reassessing the final ordered outputs on a fresh held-out set, and validating against appropriate real outcomes before using percentages for real decisions.

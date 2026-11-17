@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {clockMinute,timelineTime} from '../lib/planner-time.ts';
+assert.equal(clockMinute(-20),'23:40');
+assert.equal(timelineTime(-20,0),'Previous day 23:40');
+assert.equal(timelineTime(0,0),'00:00');
+assert.equal(timelineTime(1430,0),'23:50');
+assert.equal(timelineTime(1460,0),'Next day 00:20');
+assert.equal(timelineTime(1430,1),'Previous day 23:50');
+assert.equal(timelineTime(1460,1),'00:20');
+assert.equal(timelineTime(4320,1),'2 days later 00:00');
+console.log('8 planner time checks passed');
