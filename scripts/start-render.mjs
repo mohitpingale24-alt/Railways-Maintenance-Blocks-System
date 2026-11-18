@@ -12,7 +12,11 @@ if (migration.status !== 0) process.exit(migration.status || 1);
 const engine = spawn('.venv/bin/python', ['-u', 'planner/server.py'], { env: { ...env, PORT: '18808', RAILBLOCK_BIND_HOST: '127.0.0.1' }, stdio: 'inherit' });
 const worker = spawn('node', ['node_modules/wrangler/bin/wrangler.js', 'dev', '--local', '--config', config, '--persist-to', persist, '--ip', '127.0.0.1', '--port', '3001', '--var', `RAILBLOCK_ENGINE_TOKEN:${token}`, '--var', 'RAILBLOCK_ENGINE_URL:http://127.0.0.1:18808'], { env, stdio: 'inherit' });
 const proxy = createServer((incoming, response) => {
-  const upstream = request({hostname:'127.0.0.1',port:3001,method:incoming.method,path:incoming.url,headers:incoming.headers}, result => {response.writeHead(result.statusCode || 502, result.headers);result.pipe(response)});
+  const headers = {...incoming.headers};
+  // Render terminates TLS. Only rewrite a browser origin that exactly matches
+  // the public host; foreign origins remain unchanged and are rejected.
+  if (headers.origin && headers.host && headers.origin === `https://${headers.host}`) headers.origin = `http://${headers.host}`;
+  const upstream = request({hostname:'127.0.0.1',port:3001,method:incoming.method,path:incoming.url,headers}, result => {response.writeHead(result.statusCode || 502, result.headers);result.pipe(response)});
   upstream.on('error', () => {if(!response.headersSent) response.writeHead(503);response.end('Application is starting. Please retry.')});
   incoming.pipe(upstream);
 });
