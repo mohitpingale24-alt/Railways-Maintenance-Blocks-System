@@ -9,7 +9,7 @@ type Row={id:string;status:string;revision:number;payload:string;created_at:stri
 class EngineRequestError extends Error { constructor(message:string,readonly status:number){super(message)} }
 async function engine<T>(path:string,body?:unknown):Promise<T>{
  let res:Response;
- try{res=await fetch('http://127.0.0.1:8008'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Engine-Token':(env as unknown as {RAILBLOCK_ENGINE_TOKEN:string}).RAILBLOCK_ENGINE_TOKEN||''},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(240000)})}
+ try{res=await fetch(new URL(path, (env as unknown as { RAILBLOCK_ENGINE_URL?: string }).RAILBLOCK_ENGINE_URL || 'http://127.0.0.1:8008'),{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Engine-Token':(env as unknown as {RAILBLOCK_ENGINE_TOKEN:string}).RAILBLOCK_ENGINE_TOKEN||''},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(240000)})}
  catch(e){console.error('Local planning connection:',(e as Error).message);throw new Error('The local planning engine is unavailable. Restart with npm run dev.')}
  const data:unknown=await res.json();if(!res.ok)throw new EngineRequestError(isRecord(data)&&typeof data.error==='string'?data.error:'Planning failed.',res.status);return data as T;
 }
@@ -46,6 +46,11 @@ export async function POST(req:Request){
  if(body.blocks!==undefined&&!Array.isArray(body.blocks))return json({error:'Plan blocks must be a list.'},400);
  return json(await engine('/delay/analyze',{config:body.config,blocks:body.blocks||[]}));
  }
+ if(action==='clustering'){
+ if(!isRecord(body.config)||typeof body.config.zone!=='string'||!body.config.zone.trim())return json({error:'Choose a Maharashtra planning zone before loading clustering.'},400);
+ if(body.blocks!==undefined&&!Array.isArray(body.blocks))return json({error:'Plan blocks must be a list.'},400);
+ return json(await engine('/clustering',{config:body.config,blocks:body.blocks||[]}));
+ }
  if(action==='twin_asset'){
  if(typeof body.asset_id!=='string'||!body.asset_id.trim())return json({error:'Choose an asset first.'},400);
  return json(await engine('/twin/asset',{asset_id:body.asset_id}));
@@ -54,6 +59,10 @@ export async function POST(req:Request){
  if(typeof body.asset_id!=='string'||!body.asset_id.trim())return json({error:'Choose an asset first.'},400);
  if(body.overrides!==undefined&&(typeof body.overrides!=='object'||body.overrides===null||Array.isArray(body.overrides)))return json({error:'What-if inputs must be an object.'},400);
  return json(await engine('/twin/infer',{asset_id:body.asset_id,overrides:body.overrides||{}}));
+ }
+ if(action==='twin_network'){
+ if(!isRecord(body.config)||typeof body.config.zone!=='string'||!body.config.zone.trim())return json({error:'Choose a Maharashtra planning zone before loading the network twin.'},400);
+ return json(await engine('/twin/network',{config:body.config,delays:body.delays||[]}));
  }
  if(action==='twin_replan'){
  if(!isRecord(body.config)||typeof body.config.zone!=='string'||!body.config.zone.trim())return json({error:'Choose a Maharashtra planning zone before a twin replan.'},400);

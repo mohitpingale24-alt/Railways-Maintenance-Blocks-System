@@ -1,4 +1,4 @@
-"""Evaluate served probabilities on untouched synthetic test assets and dates.
+"""Evaluate served probabilities on the stored synthetic test assets and dates.
 
 Bootstrap resamples assets, retaining their repeated observations; this accounts
 for within-asset dependence but not other shared simulation effects. Quantile bins
@@ -11,16 +11,18 @@ from sklearn.metrics import brier_score_loss, log_loss
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'planner'))
 from maharashtra.pipeline import ARTIFACTS, connect
 from maharashtra.store import artifact_model, report
+from model_validation_inputs import model_inputs
 
 r=report(); n=r['counts']['assets']; start=int(.8*n)
 with connect() as db:
-    test=db.execute('SELECT asset_id,features,y7,y30,y90 FROM observations WHERE asset_id>=? AND day BETWEEN 1140 AND 1230 ORDER BY asset_id,day',(start,)).fetchall()
+    test=db.execute('SELECT asset_id,day,features,y7,y30,y90 FROM observations WHERE asset_id>=? AND day BETWEEN 1140 AND 1230 ORDER BY asset_id,day',(start,)).fetchall()
     val=db.execute('SELECT AVG(y7),AVG(y30),AVG(y90) FROM observations WHERE asset_id>=? AND asset_id<? AND day BETWEEN 900 AND 990',(int(.6*n),start)).fetchone()
 x=np.array([json.loads(row['features']) for row in test],dtype=np.float32)
 y=np.array([[row['y7'],row['y30'],row['y90']] for row in test])
 assets=np.array([row['asset_id'] for row in test]); unique,inverse=np.unique(assets,return_inverse=True)
-m=artifact_model((ARTIFACTS/'models.joblib').stat().st_mtime_ns)['risk']
-raw=np.column_stack([model.predict_proba(x)[:,1] for model in m]); served=np.maximum.accumulate(raw,axis=1)
+m=artifact_model((ARTIFACTS/'models.joblib').stat().st_mtime_ns)
+inputs=model_inputs(test)
+raw=np.column_stack([model.predict_proba(inputs[fset])[:,1] for model,fset in zip(m['risk'],m.get('risk_features',['base']*3))]); served=np.maximum.accumulate(raw,axis=1)
 assert len(x)==r['test_rows'] and np.isfinite(served).all() and (served>=0).all() and (served<=1).all()
 assert (np.diff(served,axis=1)>=0).all() and len(unique)==n-start
 rng=np.random.default_rng(92713); repetitions=600
@@ -32,7 +34,7 @@ def interval(mask, values):
     denominators=weights@counts; numerators=weights@totals
     valid=denominators>0
     return [float(v) for v in np.quantile(numerators[valid]/denominators[valid],[.025,.975])]
-out={'model_sha256':r['model_sha256'],'provenance':'Synthetic holdout only; no railway calibration established','observations':len(x),'assets':len(unique),'bootstrap':{'type':'asset-cluster percentile','replicates':repetitions,'seed':92713},'horizons':[]}
+out={'model_sha256':r['model_sha256'],'provenance':'Synthetic test cohort only; no railway calibration established. The training pipeline consults test metrics when deciding whether to adopt calibration, so this cohort is not independent of all model-selection decisions.','observations':len(x),'assets':len(unique),'bootstrap':{'type':'asset-cluster percentile','replicates':repetitions,'seed':92713},'horizons':[]}
 for j,h in enumerate([7,30,90]):
     p=served[:,j]; actual=y[:,j]; bins=[]
     # Stable rank bins give five equally sized groups, without presenting exact cutoffs as decision thresholds.

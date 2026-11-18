@@ -42,10 +42,14 @@ launch('node',['node_modules/vinext/dist/cli.js','dev','--host','127.0.0.1','--p
 // Watch the sources and restart ONLY the planner child on a .py change;
 // the app child and the shared engine token stay untouched.
 try {
-  watch('planner',{recursive:true},(_event,filename)=>{
+  const plannerWatcher=watch('planner',{recursive:true},(_event,filename)=>{
     if(!filename||filename.includes('__pycache__')||!filename.endsWith('.py'))return;
     clearTimeout(plannerTimer);
     plannerTimer=setTimeout(()=>{if(closing||!plannerChild)return;plannerRestarting=true;console.log(`Planner source changed (${filename}); restarting the planner only.`);plannerChild.kill('SIGTERM')},400);
+  });
+  plannerWatcher.on('error',error=>{
+    plannerWatcher.close();
+    console.warn(`Planner source watching unavailable (${error.code||error.message}); restart manually after Python source changes.`);
   });
 } catch { /* watcher unavailable on this platform: manual restart still works */ }
 console.log('Starting RailBlock AI at http://localhost:3000. Local service logs are in .wrangler/logs/.');

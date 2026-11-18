@@ -1016,3 +1016,32 @@ label.pick>input[type=number]{width:72px}
 .mc-panel>.metric-note{margin-left:24px;margin-right:24px}
 .mc-panel>div:not(.section-header):not(.department-tabs){margin-left:24px;margin-right:24px}
 .mc-panel>h3{margin-left:24px;margin-right:24px}
+/* repair 2 (2026-11-17): train-delay page — toolbar stacking + panel body insets (delay panels never got the mc-panel inset treatment) */
+.planner-toolbar{flex-wrap:wrap}
+.planner-toolbar>.metric-note,.planner-toolbar>.plan-history{flex:1 1 100%}
+.panel>h3{margin:18px 23px 6px;font-size:13px;font-weight:600;color:#384034}
+.panel>.metric-note{margin-left:23px;margin-right:23px}
+.panel>.plan-comparison{margin-left:23px;margin-right:23px}
+.section-header>.pill{white-space:nowrap;flex-shrink:0}
+/* repair 3 (2026-11-17): delay comparison — un-clip gap labels, highlight what the delay changed */
+.plan-comparison .timeline-authorization{overflow:visible;padding:6px 4px;z-index:2}
+.plan-comparison .traffic-bar.passenger.shifted{background:#e8a33d;box-shadow:inset 0 0 0 2px #b97a1e}
+.plan-comparison .timeline-authorization.changed{border-color:#b97a1e;color:#8a5a12;font-weight:600;background:repeating-linear-gradient(45deg,#f7e8cf,#f7e8cf 5px,#fdf6e9 5px,#fdf6e9 10px)}
+/* repair 4 (2026-11-17): delay toolbar rows — pill row wraps instead of overflowing, propagate checkbox aligns with its label */
+.plan-history{flex-wrap:wrap}
+.plan-controls label.twin-check{flex-direction:row;align-items:center;gap:8px}
+/* clustering tab (2026-11-18): per-section suggested-vs-bundled bars */
+.cluster-legend{display:flex;gap:20px;padding:2px 22px 12px;font-size:12px;color:#5a6a7c}
+.cluster-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:#b6c2cf;vertical-align:-1px}
+.cluster-legend i.cluster{background:#193e64}
+.cluster-chart{display:grid;gap:14px;padding:0 22px 20px}
+.cluster-bar-row{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:start}
+.cluster-section b{display:block;font-size:13px}
+.cluster-section span{font-size:11.5px;color:#5a6a7c}
+.cluster-bars{display:grid;gap:6px}
+.cluster-bar{position:relative;height:18px;background:#e8edf2;border-radius:5px;overflow:hidden}
+.cluster-bar i{position:absolute;top:0;bottom:0;left:0;background:#b6c2cf;border-radius:5px}
+.cluster-bar.cluster i{background:#193e64}
+.cluster-bar em{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-style:normal;font-size:11px;font-weight:600;color:#33475e}
+.cluster-empty{padding:0 22px 18px}
+@media (max-width:760px){.cluster-bar-row{grid-template-columns:1fr}}

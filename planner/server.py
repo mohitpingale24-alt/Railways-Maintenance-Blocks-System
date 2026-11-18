@@ -11,6 +11,7 @@ import operations
 import freight_model
 import hashlib
 import delay as delay_mod
+import hypergraph as hypergraph_mod
 import twin as twin_mod
 from urllib.parse import urlparse, parse_qs
 from maharashtra import store as mh
@@ -32,11 +33,12 @@ def selected_data(config):
         # movements, rebuild candidate windows from them and bind the plan
         # fingerprint to the delayed inputs, so freshness checks reproduce
         # exactly this scenario. ML features are untouched by design.
-        shifted,applied=delay_mod.apply_delays(data['movements'],delays)
+        shifted,applied,knock_on=delay_mod.simulate_network(data['movements'],delays)
         data=dict(data);data['movements']=shifted;data['traffic']=shifted
         data['candidate_windows']=delay_mod.candidate_windows(data,shifted)
         data['delay_applied']=applied
-        data['delay_service_ids']=sorted({a['service_id'] for a in applied})
+        data['delay_knock_on']=knock_on
+        data['delay_service_ids']=sorted({a['service_id'] for a in applied}|{k['service_id'] for k in knock_on})
         data['fingerprint']=hashlib.sha256((data['fingerprint']+json.dumps(delays,sort_keys=True)).encode()).hexdigest()
     changes=config.get('twin_changes')
     if changes:
@@ -44,6 +46,10 @@ def selected_data(config):
         data['fingerprint']=twin_mod.changes_fingerprint(data['fingerprint'],changes)
         data['twin_applied']=applied
         data['candidate_windows']=delay_mod.candidate_windows(data,data['movements'])
+    # Hypergraph clustering: section-day task groups that can share one
+    # candidate window. solve() bundles these first, under the same
+    # compatibility rules as its greedy pass; CP-SAT remains the verifier.
+    data=dict(data);data['suggested_groups']=hypergraph_mod.suggested_groups(data)
     return data
 LOCK = threading.Lock()
 def bound_fingerprint(dataset_fingerprint, config):
@@ -53,6 +59,48 @@ def bound_fingerprint(dataset_fingerprint, config):
     # the raw dataset fingerprint; freshness accepts either form.
     keys={k:(config or {}).get(k) for k in ('solver_time_limit','solver_workers','solver_seed','strategy','disruptions_enabled')}
     return hashlib.sha256((dataset_fingerprint+json.dumps(keys,sort_keys=True,default=str)).encode()).hexdigest()
+
+def clustering_report(data, config, blocks):
+    """Hypergraph clustering as CP-SAT sees it.
+
+    Returns the suggested section-day groups, the bundles engine.bundle()
+    actually forms from them for this scope (the same call solve() makes,
+    so this preview cannot drift from the solver), per-section counts for
+    the chart, and — when the current plan's blocks are supplied — how
+    many clusters the plan realized as joint blocks.
+    """
+    import engine as engine_mod
+    groups=data.get('suggested_groups') or []
+    cluster_sets=[set(g['task_ids']) for g in groups]
+    tasks=engine_mod.effective_tasks(data, {**config, 'incidents': config.get('incidents') or []})
+    eligible=[t for t in tasks if t.get('safety_action')!='STOP_AND_REVIEW' and t['release_day']<config['horizon']]
+    bundles=engine_mod.bundle(eligible, True, cluster_sets)
+    def is_cluster(group):
+        return len(group)>=2 and any({t['id'] for t in group}<=cs for cs in cluster_sets)
+    cluster_bundles=[g for g in bundles if is_cluster(g)]
+    section_names={s['id']:s['name'] for s in data.get('sections') or []}
+    per_section={}
+    for g in groups:
+        row=per_section.setdefault(g['section'], dict(section=g['section'], name=section_names.get(g['section'], g['section']), suggested=0, cluster_bundles=0))
+        row['suggested']+=1
+    for g in cluster_bundles:
+        row=per_section.setdefault(g[0]['section'], dict(section=g[0]['section'], name=section_names.get(g[0]['section'], g[0]['section']), suggested=0, cluster_bundles=0))
+        row['cluster_bundles']+=1
+    realized=None
+    if blocks:
+        joint=[b for b in blocks if len(b.get('tasks') or [])>=2]
+        realized=dict(plan_blocks=len(blocks), joint_blocks=len(joint),
+                      cluster_flagged=sum(1 for b in blocks if b.get('cluster')),
+                      cluster_shaped_blocks=sum(1 for b in joint if any(set(b['tasks'])<=set(g['task_ids']) for g in groups)))
+    return dict(groups=groups,
+                summary=dict(suggested_groups=len(groups),
+                             tasks_in_clusters=len(set().union(*cluster_sets)) if cluster_sets else 0,
+                             eligible_tasks=len(eligible), bundles=len(bundles),
+                             cluster_bundles=len(cluster_bundles),
+                             clustered_tasks=sum(len(g) for g in cluster_bundles)),
+                per_section=sorted(per_section.values(), key=lambda r: r['section']),
+                cluster_bundle_tasks=[[t['id'] for t in g] for g in cluster_bundles],
+                realized=realized)
 
 def busy(message):
     # Concurrency contract, stated explicitly: the local planner runs ONE
@@ -85,7 +133,9 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path=='/legacy-dataset':
                 return self.respond(describe(legacy_data()))
             if parsed.path=='/dataset':
-                return self.respond(mh.dataset(params))
+                data=mh.dataset(params)
+                data=dict(data);data['suggested_groups']=hypergraph_mod.suggested_groups(data)
+                return self.respond(data)
             if parsed.path=='/zone-summary':
                 return self.respond(mh.zone_summary())
             if parsed.path=='/assets':
@@ -154,6 +204,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(twin_mod.asset_detail(body.get('asset_id')))
             if self.path=='/twin/infer':
                 return self.respond(twin_mod.whatif(body.get('asset_id'),body.get('overrides') or {}))
+            if self.path=='/twin/network':
+                config={k:v for k,v in (body.get('config') or {}).items() if k!='delays'}
+                data=selected_data(config)
+                return self.respond(twin_mod.network_state(data,body.get('delays') or []))
             if self.path=='/twin/replan':
                 if not LOCK.acquire(blocking=False):
                     return self.respond(busy('A planning run is already in progress. Please retry after it finishes.'), 409)
@@ -177,6 +231,10 @@ class Handler(BaseHTTPRequestHandler):
                 before=selected_data({k:v for k,v in config.items() if k!='delays'})
                 after=selected_data(config) if delays else before
                 return self.respond(delay_mod.analyze(before,after,delays,body.get('blocks') or []))
+            if self.path=='/clustering':
+                config=body['config']
+                data=selected_data(config)
+                return self.respond(clustering_report(data,config,body.get('blocks') or []))
             if self.path=='/operations/validate':
                 return self.respond({'errors':operations.validate(body['input'],body['blocks'])})
             if self.path=='/generate':
@@ -214,5 +272,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__=='__main__':
-    print('RailBlock planning engine ready on localhost:8008', flush=True)
-    ThreadingHTTPServer(('127.0.0.1', 8008), Handler).serve_forever()
+    host = os.environ.get('RAILBLOCK_BIND_HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', '8008'))
+    with ThreadingHTTPServer((host, port), Handler) as server:
+        print(f'RailBlock planning engine ready on {host}:{port}', flush=True)
+        server.serve_forever()

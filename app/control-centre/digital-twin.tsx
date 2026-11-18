@@ -2,7 +2,7 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {ChevronLeft, ChevronRight, Clock3, FolderOpen, Pause, Play, Save, Search, TriangleAlert, Wrench} from 'lucide-react';
 import {PlanCompare, SolverConfigPanel, defaultSolverSettings, solverConfigFields, type SolverSettings} from './scheduling-config';
-import type {Asset, AssetDetail, Dataset, DelayAnalysis, Plan, PlanningConfig, PriorityWeights, Section, TaskOverride, TwinOverrides, TwinScenario, WhatIf} from '@/lib/planner-types';
+import type {Asset, AssetDetail, Dataset, DelayAnalysis, Plan, PlanningConfig, PriorityWeights, Section, TaskOverride, TwinNetwork, TwinOverrides, TwinScenario, WhatIf} from '@/lib/planner-types';
 
 /* Railway Digital Twin: a scenario layer over the existing synthetic
    lifecycle store, saved ML models, corrected timetable and CP-SAT engine.
@@ -66,6 +66,7 @@ export default function DigitalTwin({dataset, plan, scope, busy, onReplan}: {dat
   const effectiveTrainId = movements.some(m => m.service_id === trainId) ? trainId : movements[0]?.service_id || '';
   const [propagate, setPropagate] = useState(false), [solverCfg, setSolverCfg] = useState<SolverSettings>(defaultSolverSettings);
   const [analysis, setAnalysis] = useState<DelayAnalysis | null>(null), [analysisError, setAnalysisError] = useState(''), [analysisBusy, setAnalysisBusy] = useState(false);
+  const [network, setNetwork] = useState<TwinNetwork | null>(null);
   const [clock, setClock] = useState(0), [playing, setPlaying] = useState(false);
   const [basePlan, setBasePlan] = useState<Plan | null>(null);
   const [scenarioName, setScenarioName] = useState(''), [saved, setSaved] = useState<SavedScenario[]>([]), [opened, setOpened] = useState<OpenedScenario | null>(null), [saveNote, setSaveNote] = useState('');
@@ -134,6 +135,7 @@ export default function DigitalTwin({dataset, plan, scope, busy, onReplan}: {dat
       const config = buildConfig(true);
       config.section = section;
       setAnalysis(await post<DelayAnalysis>({action: 'delay_analyze', config, blocks: plan?.blocks || []}));
+      post<TwinNetwork>({action: 'twin_network', config: buildConfig(false), delays}).then(setNetwork).catch(() => {});
     } catch (e) { setAnalysisError((e as Error).message); }
     finally { setAnalysisBusy(false); }
   };
@@ -260,7 +262,7 @@ export default function DigitalTwin({dataset, plan, scope, busy, onReplan}: {dat
 
     <div className="delay-grid">
       <section className="panel">
-        <div className="section-header"><div><h2>Train movement twin · {section}</h2><p>Reuse of the Train Delay layer: real gap recalculation on the corrected section timetable.</p></div></div>
+        <div className="section-header"><div><h2>Train movement twin · {section}</h2><p>The whole network is re-simulated as one twin state: direct delays, downstream propagation and knock-on pushes between trains, then gaps recalculated on the corrected section timetable.</p></div></div>
         <div className="delay-controls">
           <Pick label="Train (day 1, this section)" value={effectiveTrainId} onChange={setTrainId} options={movements.map(m => ({value: m.service_id, label: `${m.train_no} · ${m.from_station} → ${m.to_station} · ${fmt(m.start)}–${fmt(m.end)}`}))} />
           <label className="pick"><span>Delay · minutes</span><input aria-label="Delay minutes" type="number" min={0} max={720} step={5} value={delayMinutes} onChange={e => setDelayMinutes(Number(e.target.value))} /></label>
@@ -276,6 +278,13 @@ export default function DigitalTwin({dataset, plan, scope, busy, onReplan}: {dat
           <Stat label="Gaps disappeared / shrunk / new" value={`${analysis.summary.gaps_disappeared} / ${analysis.summary.gaps_shrunk_or_shifted} / ${analysis.summary.gaps_new}`} />
           <Stat label="Existing blocks affected" value={String(analysis.summary.affected_blocks)} sub={analysis.source === 'MANUAL_SIMULATION' ? 'Manual simulation - not a live feed' : analysis.source} />
         </div>}
+        {network && <div className="delay-stats">
+          <Stat label="Network twin - trains" value={String(network.summary.trains)} sub={`${network.summary.movements} movements simulated`} />
+          <Stat label="Direct / propagated" value={`${network.summary.direct} / ${network.summary.propagated}`} />
+          <Stat label="Knock-on movements" value={String(network.summary.knock_on_movements)} sub={`${network.summary.knock_on_trains} other train${network.summary.knock_on_trains === 1 ? '' : 's'} pushed`} />
+          <Stat label="Max delay in network" value={`${network.summary.max_delay_minutes} min`} />
+        </div>}
+        {network && network.knock_on.length > 0 && <div><h3>Knock-on effects across the network</h3>{network.knock_on.map(k => <p key={k.service_id} className="metric-note"><b>Train {k.train_no}</b> · {dataset.sections.find(s => s.id === k.section)?.name || k.section} · <span className="pill amber">+{k.knock_on_minutes} min knock-on</span> · pushed by train {k.caused_by_train_no || '—'} ({k.mechanism === 'same_train' ? 'carried along its own route' : 'headway behind a late train'})</p>)}</div>}
       </section>
 
       <section className="panel">

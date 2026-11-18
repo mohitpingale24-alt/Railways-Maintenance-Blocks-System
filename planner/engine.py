@@ -63,10 +63,53 @@ def compatible(a, b):
     return abs(a['due_day']-b['due_day'])<=7
 
 
-def bundle(tasks, joint=True):
+def _cluster_bundles(waiting, clusters, predecessors):
+    """Form bundles from hypergraph clusters first (see hypergraph.py).
+
+    A cluster is a set of task ids sharing a section and a day whose
+    candidate window can host them together. Within a cluster, bundling
+    obeys exactly the rules of the greedy pass below: at most 3 tasks, a
+    seed that is not a predecessor, and every partner compatible with all
+    current members. A cluster only claims a bundle when at least two of
+    its tasks can genuinely pair; anything else falls through to the
+    greedy pass untouched. Consumed tasks are removed from `waiting`.
+    """
+    by_id = {t['id']: t for t in waiting}
+    candidates = []
+    for cluster in clusters:
+        ids = sorted(i for i in cluster if i in by_id)
+        if len(ids) >= 2:
+            candidates.append(ids)
+    # Deterministic order: strongest cluster (by best member priority) first.
+    candidates.sort(key=lambda ids: (-max(by_id[i]['priority'] for i in ids), ids))
+    formed = []
+    for ids in candidates:
+        members = [by_id[i] for i in ids if by_id[i] in waiting]
+        if len(members) < 2:
+            continue
+        members.sort(key=lambda t: (-t['priority'], t['id']))
+        seed = members[0]
+        if seed['id'] in predecessors:
+            continue
+        group = [seed]
+        for t in members[1:]:
+            if len(group) == 3:
+                break
+            if t['id'] not in predecessors and all(compatible(t, other) for other in group):
+                group.append(t)
+        if len(group) >= 2:
+            formed.append(group)
+            for t in group:
+                waiting.remove(t)
+    return formed
+
+
+def bundle(tasks, joint=True, clusters=None):
     waiting = sorted(tasks, key=lambda t: (-t['priority'], t['id'])) if joint else sorted(tasks, key=lambda t: t['id'])
     predecessors = {p for t in tasks for p in t['dependencies']}
     groups = []
+    if joint and clusters:
+        groups += _cluster_bundles(waiting, clusters, predecessors)
     while waiting:
         group = [waiting.pop(0)]
         if joint and group[0]['id'] not in predecessors:
@@ -352,7 +395,13 @@ def solve(data, config, joint=True, frozen=None, preferences=None, task_subset=N
     eligible = [t for t in tasks if t not in withheld and t['release_day']<horizon and (task_subset is None or t['id'] in task_subset)]
     frozen = frozen or []
     fixed_ids = {t for b in frozen for t in b['tasks']}
-    groups = [[lookup[t] for t in b['tasks']] for b in frozen]+bundle([t for t in eligible if t['id'] not in fixed_ids], joint)
+    # Hypergraph clusters (when the dataset carries them) steer bundling:
+    # tasks that can share a section-day window are bundled together first,
+    # under the same compatibility rules as the greedy pass, so CP-SAT
+    # receives cluster-shaped joint blocks instead of purely priority-shaped
+    # ones. Without suggested_groups this is exactly the previous behaviour.
+    cluster_sets = [set(g['task_ids']) for g in data.get('suggested_groups') or []]
+    groups = [[lookup[t] for t in b['tasks']] for b in frozen]+bundle([t for t in eligible if t['id'] not in fixed_ids], joint, cluster_sets)
     model = cp_model.CpModel()
     pools, variables, by_task, reward, unscheduled = defaultdict(list), [], {}, [], [dict(id=t['id'],reason='STOP_AND_REVIEW: simulated critical inspection evidence; urgent controller review required independently of score.') for t in withheld]
     candidate_intervals = 0
@@ -362,6 +411,8 @@ def solve(data, config, joint=True, frozen=None, preferences=None, task_subset=N
     slots_per_day = 6 if p_end<=360 else 24
     for i, group in enumerate(groups):
         b = block_for(group)
+        if len(group) >= 2 and any({t['id'] for t in group} <= cs for cs in cluster_sets):
+            b['cluster'] = True
         domain = windows(data, b['section'], b['duration'], max(t['release_day'] for t in group), horizon, config['incidents'])
         if period is not None:
             lower, upper = period
@@ -467,10 +518,12 @@ def solve(data, config, joint=True, frozen=None, preferences=None, task_subset=N
     solver.parameters.random_seed = seed
     status = solver.solve(model)
     proto = model.proto
+    cluster_bundles = sum(1 for g in groups[len(frozen):] if len(g) >= 2 and any({t['id'] for t in g} <= cs for cs in cluster_sets))
     diagnostics = dict(eligible_tasks=len(eligible), groups=len(groups), modeled_groups=len(variables),
                        candidate_intervals=candidate_intervals, variables=len(proto.variables),
                        constraints=len(proto.constraints), seed=seed, workers=workers,
-                       time_limit_seconds=solver.parameters.max_time_in_seconds)
+                       time_limit_seconds=solver.parameters.max_time_in_seconds,
+                       clusters_available=len(cluster_sets), cluster_bundles=cluster_bundles)
     logger.warning('CP-SAT horizon=%s joint=%s diagnostics=%s status=%s objective=%s bound=%s seconds=%.3f',
                    horizon, joint, diagnostics, solver.status_name(status),
                    solver.objective_value if status in (cp_model.FEASIBLE, cp_model.OPTIMAL) else None,

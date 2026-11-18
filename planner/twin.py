@@ -299,3 +299,75 @@ def changes_fingerprint(dataset_fingerprint, changes):
 def scenario_stale(saved_fingerprint, current_fingerprint):
     """A saved scenario reproduces only while its source fingerprint holds."""
     return bool(saved_fingerprint) and bool(current_fingerprint) and saved_fingerprint != current_fingerprint
+
+
+def network_state(data, delays=None):
+    """The twin's live NETWORK state: every train movement in the dataset
+    with its simulated status under a delay scenario.
+
+    The asset twin (above) answers 'what happens to this asset'; this
+    answers 'what happens to the network'. Delay simulation is the delay
+    layer's full network model (delay.simulate_network): direct delays,
+    same-run propagation, and cross-train knock-on under the 5-minute
+    headway / no-overtake rule with scheduled-slack recovery. State is
+    computed from the dataset's real movements on every call - nothing
+    is cached or hardcoded - and stored data is never modified.
+    """
+    import delay as delay_mod
+    delays = delay_mod.validate_delays(delays or [])
+    movements = data['movements']
+    if delays:
+        shifted, applied, knock_on = delay_mod.simulate_network(movements, delays)
+    else:
+        shifted, applied, knock_on = [dict(m) for m in movements], [], []
+    status = {}
+    for a in applied:
+        status[a['service_id']] = 'direct' if a['via'] == 'direct' else 'propagated'
+    caused_by = {}
+    for k in knock_on:
+        status[k['service_id']] = 'knock_on'
+        caused_by[k['service_id']] = k['caused_by_train_no']
+    original = {m['service_id']: m for m in movements}
+    trains = {}
+    for m in shifted:
+        sid = m['service_id']
+        o = original[sid]
+        entry = dict(service_id=sid, section=m['section'],
+                     from_station=m.get('from_station'), to_station=m.get('to_station'),
+                     original_start=o['start'], original_end=o['end'],
+                     start=m['start'], end=m['end'],
+                     delayed_minutes=m.get('delayed_minutes', 0),
+                     status=status.get(sid, 'on_time'),
+                     caused_by_train_no=caused_by.get(sid))
+        trains.setdefault(str(m.get('train_no') or sid), []).append(entry)
+    train_rows = []
+    for train_no in sorted(trains):
+        rows = sorted(trains[train_no], key=lambda r: r['original_start'])
+        train_rows.append(dict(train_no=train_no, movements=rows,
+                               total_delay_minutes=max((r['delayed_minutes'] for r in rows), default=0),
+                               sections=sorted({r['section'] for r in rows})))
+    sections = {}
+    for t in train_rows:
+        for r in t['movements']:
+            s = sections.setdefault(r['section'], dict(section=r['section'], movements=0,
+                                                       delayed_movements=0, max_delay_minutes=0))
+            s['movements'] += 1
+            if r['delayed_minutes']:
+                s['delayed_movements'] += 1
+                s['max_delay_minutes'] = max(s['max_delay_minutes'], r['delayed_minutes'])
+    return dict(
+        kind='NETWORK_TWIN_STATE', source=delay_mod.SOURCE, source_note=delay_mod.SOURCE_NOTE,
+        trains=train_rows,
+        sections=[sections[k] for k in sorted(sections)],
+        knock_on=knock_on,
+        summary=dict(trains=len(train_rows),
+                     movements=len(shifted),
+                     direct=len([a for a in applied if a['via'] == 'direct']),
+                     propagated=len([a for a in applied if a['via'] != 'direct']),
+                     knock_on_movements=len(knock_on),
+                     knock_on_trains=len({k['train_no'] for k in knock_on}),
+                     max_delay_minutes=max((m.get('delayed_minutes', 0) for m in shifted), default=0)),
+        limitations=[
+            'Twin state is a deterministic simulation from the selected timetable references, not a live feed.',
+            'Knock-on uses the 5-minute headway / no-overtake rule and scheduled-slack recovery only.',
+            'Asset risk, duration and Criticality values are never changed by a train-delay scenario.'])

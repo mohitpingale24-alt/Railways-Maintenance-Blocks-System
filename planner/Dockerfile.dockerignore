@@ -1,0 +1,13 @@
+**
+!planner/
+!planner/*.py
+!planner/requirements.txt
+!planner/maharashtra/
+!planner/maharashtra/*.py
+!data/
+!data/route-timetables.ts
+!.railblock/
+!.railblock/models.joblib
+!.railblock/simulation.sqlite
+!.railblock/legacy-scenario-cache.pkl
+!.railblock/*.json

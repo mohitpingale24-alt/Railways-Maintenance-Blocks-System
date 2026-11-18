@@ -21,7 +21,7 @@ for zone in ['Z1','Z2','Z3','Z4']:
         assert total>0 and rows and all(t['department']==dep and t['zone']==zone for t in rows)
         for t in rows:
             assert abs(t['priority']-sum(t['components'].values()))<1e-7
-            prediction=store.infer(t['observation_features'])
+            prediction=store.infer(t['observation_features'],int(t['asset_id'].split('-')[-1]),t['inspection_history']['observation_id'])
             assert all(abs(prediction['risk'][h]-t['risk'][h])<1e-6 for h in ['7','30','90'])
         out['matrix'].append(dict(zone=zone,department=dep,pending=total,verified_requests=len(rows)))
     # Actual saved model-driven requests and actual reference movements. Reduced test batch is explicit.

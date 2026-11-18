@@ -1,0 +1,12 @@
+.git
+node_modules
+.venv
+.wrangler
+.next
+.vinext
+dist
+.env*
+.dev.vars*
+.railblock
+*.tsbuildinfo
+__pycache__

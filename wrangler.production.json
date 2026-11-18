@@ -1,0 +1,12 @@
+{
+  "name": "railblock-controller",
+  "compatibility_date": "2026-09-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "railblock-controller",
+      "database_id": "0cf19983-5759-4cf3-ab7a-bac35c45dc89",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

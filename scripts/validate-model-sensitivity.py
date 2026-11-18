@@ -10,15 +10,18 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'planner'))
 from maharashtra.pipeline import ARTIFACTS, FEATURES, connect
 from maharashtra.store import artifact_model, report
+from model_validation_inputs import model_inputs
 
 r = report()
 with connect() as db:
-    rows = db.execute('SELECT features FROM observations WHERE asset_id>=? AND day BETWEEN 1140 AND 1230 ORDER BY day,asset_id', (int(r['counts']['assets']*.8),)).fetchall()
+    rows = db.execute('SELECT asset_id,day,features FROM observations WHERE asset_id>=? AND day BETWEEN 1140 AND 1230 ORDER BY day,asset_id', (int(r['counts']['assets']*.8),)).fetchall()
 x = np.array([json.loads(row['features']) for row in rows], dtype='float32')
-models = artifact_model((ARTIFACTS/'models.joblib').stat().st_mtime_ns)['risk']
+artifact = artifact_model((ARTIFACTS/'models.joblib').stat().st_mtime_ns)
+models = artifact['risk']
 def predict(a):
-    return np.maximum.accumulate(np.column_stack([m.predict_proba(a)[:, 1] for m in models]), axis=1)
-out = {'model_sha256': r['model_sha256'], 'rows': len(x), 'method': 'Held-out synthetic observations; vary one feature at its 10th and 90th percentiles while holding all others fixed. Maximum accumulation across horizons matches serving. Hypothetical pairs may be outside the joint distribution.', 'comparisons': {}}
+    inputs = model_inputs(rows, a)
+    return np.maximum.accumulate(np.column_stack([m.predict_proba(inputs[fset])[:, 1] for m,fset in zip(models,artifact.get('risk_features',['base']*3))]), axis=1)
+out = {'model_sha256': r['model_sha256'], 'rows': len(x), 'method': 'Held-out synthetic observations; vary one current feature at its 10th and 90th percentiles while holding other current features and recorded prior inspections fixed. Derived features are recomputed. Maximum accumulation across horizons matches serving. Hypothetical pairs may be outside the joint distribution.', 'comparisons': {}}
 for feature in ['deterioration', 'last_maintenance_days']:
     i = FEATURES.index(feature)
     low, high = np.quantile(x[:,i], [.1,.9])

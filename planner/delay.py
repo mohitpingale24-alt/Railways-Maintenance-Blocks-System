@@ -79,13 +79,126 @@ def affected_movements(movements, entry, target=None):
 
 def expand_service_ids(movements, delays):
     """Every movement service_id a delay scenario shifts, propagation
-    included. Server and engine use this one expansion so gap analysis
-    and CP-SAT incidents can never disagree."""
-    ids = set()
-    for entry in validate_delays(delays):
-        for m in affected_movements(movements, entry):
-            ids.add(m['service_id'])
-    return ids
+    and network knock-on included. Server and engine use this one
+    expansion so gap analysis and CP-SAT incidents can never disagree."""
+    _, applied, knock_on = simulate_network(movements, delays)
+    return {a['service_id'] for a in applied} | {k['service_id'] for k in knock_on}
+
+
+KNOCK_ON_SOURCE = 'NETWORK_KNOCK_ON'
+
+
+def _transfer_constraints(movements):
+    """Pairwise delay-transfer constraints (a_id, b_id, offset, kind)
+    meaning shift[b] >= shift[a] + offset. Two physical rules, both in
+    this project's own arithmetic:
+
+    - Headway on a shared section: a leader's delay transfers to a
+      follower only after it eats the scheduled buffer ABOVE the
+      5-minute headway (entry separation, and exit separation when the
+      follower is scheduled to leave after the leader). The base
+      timetable's own separations - including simultaneous departures
+      on parallel lines - are never 'repaired' into phantom delays:
+      with an on-time leader the transfer is always zero. Consecutive
+      pairs suffice: the constraints compose transitively.
+    - Same-run carry-over: a train's later movements inherit its delay,
+      reduced only by scheduled slack (the gap between its arrival and
+      its next departure, floored at zero); delay never grows along the
+      train itself. Bounded to the same 24-hour run window the existing
+      propagation uses.
+    """
+    constraints = []
+    by_section = {}
+    for m in movements:
+        by_section.setdefault(m['section'], []).append(m)
+    for section in sorted(by_section):
+        seq = sorted(by_section[section],
+                     key=lambda m: (m['start'], m['end'], m['service_id']))
+        for a, b in zip(seq, seq[1:]):
+            entry_buffer = max(0, (b['start'] - a['start']) - HEADWAY)
+            constraints.append((a['service_id'], b['service_id'],
+                                -entry_buffer, 'headway'))
+            if b['end'] > a['end']:
+                exit_buffer = max(0, (b['end'] - a['end']) - HEADWAY)
+                constraints.append((a['service_id'], b['service_id'],
+                                    -exit_buffer, 'headway'))
+    by_train = {}
+    for m in movements:
+        if m.get('train_no'):
+            by_train.setdefault(m['train_no'], []).append(m)
+    for train_no in sorted(by_train):
+        seq = sorted(by_train[train_no],
+                     key=lambda m: (m['start'], m['end'], m['service_id']))
+        for a, b in zip(seq, seq[1:]):
+            if 0 <= b['start'] - a['start'] < PROPAGATION_WINDOW_MINUTES:
+                slack = max(0, b['start'] - a['end'])
+                constraints.append((a['service_id'], b['service_id'], -slack, 'same_train'))
+    return constraints
+
+
+def simulate_network(movements, delays):
+    """Full network delay simulation. Returns (shifted, applied, knock_on).
+
+    `applied` is exactly apply_delays' output (direct + same-run
+    propagated shifts). `knock_on` lists movements of OTHER trains (or
+    extra minutes on already-delayed movements) that the shifted traffic
+    pushes under the headway / carry-over rules, each naming the movement
+    that caused it. The least fixed point of the transfer constraints is
+    computed, so chains propagate: A pushes B, B pushes C. Input is never
+    mutated.
+    """
+    delays = validate_delays(delays)
+    base_shifted, applied = apply_delays(movements, delays)
+    base = {a['service_id']: a['minutes'] for a in applied}
+    shift = dict(base)
+    constraints = _transfer_constraints(movements)
+    by_id = {m['service_id']: m for m in movements}
+    for _ in range(len(constraints) + 2):
+        changed = False
+        for a_id, b_id, offset, _kind in constraints:
+            need = shift.get(a_id, 0) + offset
+            if need > shift.get(b_id, 0):
+                shift[b_id] = need
+                changed = True
+        if not changed:
+            break
+    knock_on = []
+    for m in movements:
+        sid = m['service_id']
+        total = shift.get(sid, 0)
+        extra = total - base.get(sid, 0)
+        if extra <= 0:
+            continue
+        cause, cause_kind = None, None
+        for a_id, b_id, offset, kind in constraints:
+            if b_id == sid and shift.get(a_id, 0) + offset == total:
+                cause, cause_kind = a_id, kind
+                break
+        causer = by_id.get(cause) or {}
+        knock_on.append(dict(
+            service_id=sid, train_no=m.get('train_no'), section=m['section'],
+            from_station=m.get('from_station'), to_station=m.get('to_station'),
+            original_start=m['start'], original_end=m['end'],
+            revised_start=m['start'] + total, revised_end=m['end'] + total,
+            minutes=total, direct_minutes=base.get(sid, 0), knock_on_minutes=extra,
+            caused_by_service_id=cause, caused_by_train_no=causer.get('train_no'),
+            mechanism=cause_kind))
+    knock_on.sort(key=lambda k: (k['revised_start'], k['service_id']))
+    knocked = {k['service_id']: k for k in knock_on}
+    shifted = []
+    for m in base_shifted:
+        sid = m['service_id']
+        if sid in knocked:
+            total = shift[sid]
+            n = dict(m, start=m['start'] + knocked[sid]['knock_on_minutes'],
+                     end=m['end'] + knocked[sid]['knock_on_minutes'],
+                     delayed_minutes=total,
+                     delay_source=m.get('delay_source', SOURCE) if sid in base else KNOCK_ON_SOURCE,
+                     knock_on_minutes=knocked[sid]['knock_on_minutes'])
+            shifted.append(n)
+        else:
+            shifted.append(m)
+    return shifted, applied, knock_on
 
 
 def apply_delays(movements, delays):
@@ -256,9 +369,10 @@ def analyze(before_data, after_data, delays, blocks=None):
     before_movements = before_data['movements']
     after_movements = after_data['movements']
     _, applied = apply_delays(before_movements, delays)
+    _, _, knock_on = simulate_network(before_movements, delays)
     horizon = int((before_data.get('selection') or {}).get('horizon', 7))
     period = dataset_period(before_data)
-    sections = sorted({a['section'] for a in applied})
+    sections = sorted({a['section'] for a in applied} | {k['section'] for k in knock_on})
     if not sections and (before_data.get('selection') or {}).get('section') not in (None, 'all'):
         sections = [before_data['selection']['section']]
     gaps_before = {s: gaps_for_section(before_movements, s, horizon, period) for s in sections}
@@ -272,13 +386,15 @@ def analyze(before_data, after_data, delays, blocks=None):
         source=SOURCE, source_note=SOURCE_NOTE, scenario_fingerprint=fingerprint,
         input_fingerprint_before=before_data.get('fingerprint'),
         input_fingerprint_after=after_data.get('fingerprint'),
-        trains=applied, sections=sections, horizon=horizon,
+        trains=applied, knock_on=knock_on, sections=sections, horizon=horizon,
         planning_period=dict(start_minutes=period[0], end_minutes=period[1], label=period_label(period)),
         gaps_before=gaps_before, gaps_after=gaps_after, gap_changes=changes,
         affected_blocks=impact['affected'], already_conflicting=impact['already_conflicting'],
         blocks_checked=impact['checked'],
         summary=dict(
             delayed_trains=len(applied),
+            knock_on_trains=len({k['train_no'] for k in knock_on}),
+            knock_on_movements=len(knock_on),
             affected_blocks=len(impact['affected']),
             gaps_disappeared=sum(1 for s in sections for c in changes[s] if c['kind'] == 'disappeared'),
             gaps_shrunk_or_shifted=sum(1 for s in sections for c in changes[s] if c['kind'] in ('shrunk', 'shifted')),
@@ -286,6 +402,7 @@ def analyze(before_data, after_data, delays, blocks=None):
             longest_gap_before={s: max((g['minutes'] for g in gaps_before[s]), default=0) for s in sections},
             longest_gap_after={s: max((g['minutes'] for g in gaps_after[s]), default=0) for s in sections}),
         limitations=[
+            'Knock-on delays are a deterministic simulation: followers are pushed only by the 5-minute headway / no-overtake rule and each train recovers only its scheduled slack. No live feed exists in this project.',
             'Freight, special and unlisted traffic remain unknown; candidate gaps come only from the selected timetable references.',
             f'Every window is a conditional simulated candidate period ({period_label(period)}), never an official track possession or operating clearance.',
             'A delay changes scheduling constraints only; saved-model risk, duration and Criticality Index values are not recomputed.'])

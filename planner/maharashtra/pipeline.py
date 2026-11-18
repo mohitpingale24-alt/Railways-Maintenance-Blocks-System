@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import sys
 import time
 from pathlib import Path
 import joblib
@@ -58,6 +59,16 @@ class _CalibratedModel:
         q=self.calibrator.predict_proba(p.reshape(-1,1))[:,1] if self.kind=='platt' else self.calibrator.predict(p)
         q=np.clip(q,0.,1.);return np.column_stack([1-q,q])
     def predict(self,X):return (self.predict_proba(X)[:,1]>=.5).astype(int)
+
+# The build runs as __main__ (python -m planner.maharashtra.pipeline); without
+# these guards, a saved _CalibratedModel pickles as __main__._CalibratedModel
+# and the planner server (a different __main__) cannot load models.joblib.
+# Pin the class module to the package path so the bundle loads from any
+# process, and alias this module under its package name so pickle finds the
+# SAME class object (build() imports .store, which imports .pipeline again
+# and would otherwise create a second, distinct class object).
+_CalibratedModel.__module__='planner.maharashtra.pipeline'
+sys.modules.setdefault('planner.maharashtra.pipeline',sys.modules[__name__])
 
 def _ece(y,p,bins=10):
     edges=np.linspace(0,1,bins+1);total=0.
@@ -138,7 +149,7 @@ def duration_candidates(seed):
     except ImportError:pass
     return c
 
-VERSION='mh-lifecycle-v1'
+VERSION='mh-lifecycle-v2'
 
 def connect(path=None):
     db=sqlite3.connect(path or ARTIFACTS/'simulation.sqlite');db.row_factory=sqlite3.Row;return db
@@ -146,20 +157,33 @@ def connect(path=None):
 def simulate(seed=26092, assets=12000, months=48):
     """Daily hidden damage evolves; noisy inspections trigger repairs; failures are events.
     Outcomes are future failure events under simulated intervention, not labels from a score.
+
+    v2 regime (mh-lifecycle-v2): failure hazard is a steep tenth-power function of
+    hidden damage, so assets in poor observed condition genuinely become likely to
+    fail within days; inspection measurement noise is lower (a better instrument);
+    and an inspection-triggered repair is QUEUED and executed 2-14 days later
+    (possessions must be scheduled, they are not instant), while failure events
+    still force an immediate repair. The trigger itself is unchanged: inspection
+    day, measured deterioration above 0.63, probability 0.68.
     """
     r=np.random.default_rng(seed);n=assets;days=months*30+91
     dep=np.arange(n)%3;age=r.uniform(1,30,n);load=r.uniform(.2,1,n)
     damage=r.beta(2,5,n)*.7;frailty=r.lognormal(0,.4,n);defects=np.zeros(n);last=np.zeros(n)
+    queued=np.zeros(n,dtype=bool);exec_day=np.full(n,-1)
     observations=[];failures=np.zeros((days,n),dtype=bool);completed=[]
     for day in range(days):
         weather=.45+.3*np.sin(2*np.pi*(day%365)/365)+r.normal(0,.06,n)
-        damage=np.maximum(0,damage+.0011*frailty*(.3+load)*(1+weather)*(1+(age+day/365)/40)*(1+.02*np.minimum(defects,10))+r.normal(0,.002,n))
-        # Independent shocks and repair variability make future events stochastic.
-        event=r.random(n)<np.clip(.00004+damage**3*.006+load*.00012+(age+day/365)*.00001,0,.08)
+        damage=np.maximum(0,damage+.0016*frailty*(.3+load)*(1+weather)*(1+(age+day/365)/40)*(1+.02*np.minimum(defects,10))+r.normal(0,.002,n))
+        # v2: steep damage hazard; a queued repair executes 2-14 days after
+        # the inspection that triggered it, so near-term risk stays real.
+        event=r.random(n)<np.clip(.00004+damage**10*.9+load*.00012+(age+day/365)*.00001,0,.5)
         failures[day]=event;defects+=event
-        measured=np.maximum(0,damage+r.normal(0,.09,n))
+        measured=np.maximum(0,damage+r.normal(0,.05,n))
         inspect=(day%30==0)
-        repair=event | ((measured>.63)&inspect&(r.random(n)<.68))
+        if inspect:
+            trig=(measured>.63)&(r.random(n)<.68)&(~queued)&(~event)
+            if trig.any():queued[trig]=True;exec_day[trig]=day+r.integers(2,15,int(trig.sum()))
+        repair=event | (queued&(exec_day==day))
         if inspect and day//30<months:
             overdue=np.maximum(0,day-last-120)
             x=np.column_stack((age+day/365,defects,overdue,load,np.clip(measured,0,1),np.clip(weather,0,1),day-last,np.maximum(0,measured*6+r.normal(0,.2,n)),dep))
@@ -169,6 +193,7 @@ def simulate(seed=26092, assets=12000, months=48):
             duration=(35+dep[ids]*12+damage[ids]*110+load[ids]*25+r.lognormal(3,.4,len(ids)))
             completed.extend((int(i),day,float(v)) for i,v in zip(ids,duration))
         damage[repair]*=r.uniform(.05,.3,np.count_nonzero(repair));last[repair]=day
+        queued[repair]=False;exec_day[repair]=-1
     x=np.stack(observations)
     labels=np.zeros((months,n,3),dtype='int8')
     prefix=np.vstack([np.zeros((1,n),dtype='int32'),np.cumsum(failures,axis=0,dtype='int32')])
@@ -192,10 +217,11 @@ def _poly_extra(d,load,age):
 
 def poly_grid(x):
     # Polynomial expansion of the CURRENT observation only (no history): the
-    # simulated hazard is cubic in deterioration, and measured deterioration
-    # above 0.63 makes an inspection-day repair likely, which itself changes
-    # the failure process. Logistic regression on the raw features cannot
-    # express either shape; these terms let it.
+    # simulated hazard is a steep tenth-power function of deterioration, and
+    # measured deterioration above 0.63 makes an inspection-day repair likely
+    # (executed 2-14 days later), which itself changes the failure process.
+    # Logistic regression on the raw features cannot express either shape;
+    # these terms let it.
     d=x[:,:,4];extra=np.stack(_poly_extra(d,x[:,:,3],x[:,:,0]),axis=2)
     return np.concatenate([x,extra],axis=2).astype('float32')
 
@@ -312,7 +338,7 @@ def train_models(x,y,completed,seed):
         m=np.array([v==gname for v in test_dep_dur]);duration_test_by_dep[gname]=dict(n=int(m.sum()),mae=float(mean_absolute_error(dey[m],dur_estimate[m])))
     artifact=dict(artifact='model-comparison',version=VERSION,seed=seed,generated_by='planner/maharashtra/pipeline.py train_models + build',synthetic_data=True,
         warning='All metrics are evaluated on SYNTHETIC simulated lifecycle data. Good synthetic test performance does not prove real railway predictive accuracy.',
-        features=dict(base=FEATURES,engineered_extra=ENGINEERED,engineered_note='History features use only the same asset\u2019s current and earlier inspections; no future information.',poly_note='Polynomial features derive from the current observation only: deterioration squared/cubed (the simulated hazard is cubic in deterioration), a repair-trigger indicator at deterioration > 0.63, and deterioration interactions with load and age.'),
+        features=dict(base=FEATURES,engineered_extra=ENGINEERED,engineered_note='History features use only the same asset\u2019s current and earlier inspections; no future information.',poly_note='Polynomial features derive from the current observation only: deterioration squared/cubed (the simulated hazard is a steep tenth-power function of deterioration), a repair-trigger indicator at deterioration > 0.63, and deterioration interactions with load and age.'),
         splits=dict(train=dict(rows=len(pairs_by_split['train']),months=[0,25],assets='0-60% (asset-disjoint)'),validation=dict(rows=len(pairs_by_split['validation']),months=[30,33],assets='60-80%'),test=dict(rows=len(pairs_by_split['test']),months=[38,41],assets='80-100%'),purge_days=120,duration_test_rows=len(dey)),
         selection=dict(risk='Lowest validation Brier wins outright at >=0.5% relative improvement over the incumbent; within that statistical-tie band, the Brier-tied candidate with the highest validation ROC-AUC is selected (the risk models rank requests for the Criticality Index).',duration='Lowest validation MAE; a challenger replaces the incumbent only at >=2% relative validation-MAE improvement.',test_usage='The test cohort is untouched during selection and reported once.'),
         risk=artifact_risk,ordered_final=ordered_final,

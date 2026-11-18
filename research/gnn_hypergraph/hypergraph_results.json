@@ -1,0 +1,11 @@
+{
+ "batch": 231,
+ "hyperedges": 14,
+ "covered": 159,
+ "strict": 14,
+ "cpsat_blocks": 25,
+ "cpsat_joint": 12,
+ "solver_groups": 11,
+ "overlap": 11,
+ "missed": 3
+}

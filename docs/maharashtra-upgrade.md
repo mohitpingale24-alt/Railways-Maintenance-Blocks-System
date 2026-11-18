@@ -174,3 +174,28 @@ Verified outcome (identical code + seed, full rebuild in the sandbox; untouched 
 | Duration | XGBoost (engineered), MAE 9.34, R² 0.689 | unchanged | buffer 17.96 min |
 
 Every horizon improved on both ranking and probability quality; inference reproduces stored predictions exactly (7/7 sampled requests, all horizons), monotonicity P(7) ≤ P(30) ≤ P(90) holds for all 500,000 requests, and the comparison artifact's hash matches the newly trained bundle. Retraining on the Mac (`npm run data:maharashtra`) now takes substantially longer than the capped version (the full-cohort candidate sweep ran ~15 minutes on a throttled 1.5-CPU sandbox; expect several minutes on the Mac) — that is the honest cost of training on all the data. Until the Mac retrains, the shipped artifact describes the sandbox-trained bundle and the tab shows the hash-mismatch banner.
+
+## Lifecycle v2 — a more predictable simulated world (18 November 2026)
+
+The v1 world's ceiling was the world itself, not the models. Its daily hazard (0.006·damage³, capped at 0.08) gave even the worst asset only ~4% probability of failing within 7 days, so no honest model could ever output a probability near 0.5 — precision, recall and F1 at the standard 0.5 threshold were identically 0 for every candidate at every horizon, and ranking by the TRUE latent damage capped at AUC 0.71 (measured by oracle experiment). The system therefore ranked well but could never classify. `mh-lifecycle-v2` redesigns the simulated world so that observed condition genuinely determines near-term failure. Only `simulate()` changed — models, feature sets, splits, selection rule and the Criticality Index are untouched. Same seed (26092), same 12,000 assets, 500,000 requests, 576,000 inspections, same 9 features, same label definitions.
+
+Changes inside `simulate()`:
+
+- **Steep hazard.** Daily failure probability is now `clip(0.00004 + 0.9·damage^10 + 0.00012·load + 0.00001·age_years, 0, 0.5)` (was `damage³·0.006`, cap 0.08). An asset near the damage ceiling is now genuinely likely to fail within days; a mid-condition asset is not.
+- **Faster deterioration.** Base damage growth 0.0011 → 0.0016 per day, so more assets reach the high-risk band between monthly inspections.
+- **Better instrument.** Inspection measurement noise σ 0.09 → 0.05 (the `deterioration` feature tracks hidden damage more faithfully).
+- **Repairs are scheduled, not instant.** The trigger is unchanged (inspection day, measured deterioration > 0.63, probability 0.68), but a triggered repair is now queued and executed 2–14 days later — possessions must be scheduled, which is the premise of the whole system — while failure events still force an immediate repair. A queued repair is never double-queued, and a failure supersedes it.
+- **Latent bundle bug fixed on the way.** In v2 the 30-day winner adopts isotonic recalibration, so the saved bundle contains a `_CalibratedModel` for the first time (no v1 winner ever adopted calibration). Built via `python -m`, it pickled as `__main__._CalibratedModel` and the planner server — a different `__main__` — could not have loaded `models.joblib` at all. Two guards in `pipeline.py` fix this: the class's `__module__` is pinned to `planner.maharashtra.pipeline`, and the module aliases itself under its package name in `sys.modules` so pickle resolves the same class object at dump time. Verified: a fresh server-style process loads the v2 bundle and `store.infer` reproduces stored risks exactly.
+
+Verified outcome (identical code + seed, full rebuild in the sandbox; untouched test cohort of 9,600 rows; Mac retrain may select marginally different winners):
+
+| Target | v1 (deployed) | v2 | v2 precision / recall / F1 @ 0.5 |
+|---|---|---|---|
+| 7-day risk | LR (engineered), AUC 0.6607, F1 0.000 | LR (engineered), AUC 0.8918 | 0.531 / 0.123 / 0.199 |
+| 30-day risk | GB leaves 7 (engineered), AUC 0.6428, F1 0.000 | GB leaves 7 (engineered, isotonic-calibrated), AUC 0.8686 | 0.625 / 0.318 / 0.421 |
+| 90-day risk | LR (poly), AUC 0.6069, F1 0.000 | RF tuned (engineered), AUC 0.8139 | 0.664 / 0.712 / 0.687 |
+| Duration | XGBoost (engineered), MAE 9.34, R² 0.689 | XGBoost (engineered), MAE 8.85, R² 0.636 | buffer 17.04 min |
+
+Counts: failure events 15,302 → 70,697; completed maintenance 74,450 → 108,636 (more failures force more emergency repairs, and queued repairs still execute). Horizon prevalences on the test cohort: 4.3% / 15.4% / 41.2%. All structural invariants hold: 500,000 requests, priority = sum of components, P(7) ≤ P(30) ≤ P(90) for every request, 12,000 pending.
+
+**Honest framing.** These scores measure performance inside the v2 world, which was deliberately designed so that condition strongly determines failure. They are not evidence about real railways, and v1 → v2 is a change of world, not a model improvement — the two score sets are not comparable as modelling progress. Any document quoting v1 numbers (the presentation deck's results slides, the IEEE paper's results tables) must be regenerated from the v2 artifact before use. `VERSION` is now `mh-lifecycle-v2`; until the Mac retrains (`npm run data:maharashtra`), the shipped artifact describes the v1 bundle and the comparison tab shows the hash-mismatch banner.

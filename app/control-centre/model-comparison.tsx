@@ -83,11 +83,6 @@ function parseComparisonResponse(raw: unknown): ComparisonResponse {
 function errorMessage(raw: unknown, fallback: string): string {
   return isRecord(raw) && typeof raw.error === 'string' ? raw.error : fallback;
 }
-function thresholdAt(m: ClfMetrics, t: ThresholdKey): ThresholdMetrics | undefined {
-  const v = t === '0.5' ? m['threshold_0.5'] : t === '0.2' ? m['threshold_0.2'] : t === '0.05' ? m['threshold_0.05'] : m['threshold_0.1'];
-  return v ?? undefined;
-}
-
 const number = (n: number) => n.toLocaleString('en-IN');
 const fmt = (v: number | null | undefined, d = 4) => v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d);
 const HORIZONS: HorizonKey[] = ['7', '30', '90'];
@@ -153,6 +148,14 @@ export default function ModelComparison() {
   if (!resp) return <section className="panel cc-empty"><Loader2 className="spin" />Loading model comparison…</section>;
   if (!resp.available || !artifact) return <section className="panel"><div className="section-header"><div><h2><Activity size={18} /> ML Model Comparison</h2><p>{resp.reason || 'No comparison artifact is available yet.'}</p></div></div></section>;
   const dep = artifact.deployed; const splits = artifact.splits;
+  const block = artifact.risk[horizon];
+  const ordered = artifact.ordered_final[horizon];
+  const useOrdered = curveMode === 'ordered';
+  const modeLabel = useOrdered ? 'Ordered final probabilities' : 'Raw model probabilities';
+  const m = useOrdered ? ordered.metrics : selectedRow?.test;
+  const matrix = m?.[`threshold_${threshold}`];
+  const curves = useOrdered ? ordered.curves : block.selected_curves;
+  const calPts = useOrdered ? ordered.calibration_points : block.selected_calibration_points;
   return <>
     <section className="panel controller-data-note"><b>Synthetic-data evaluation — read this first</b><p>{artifact.warning} Every number below comes from the saved evaluation artifact written by the training pipeline on the same asset-disjoint, chronological test cohort; nothing is typed in by hand. Risk probabilities feed the six-factor Criticality Index (30-day risk) and predicted durations feed CP-SAT.</p></section>
     <div className="cc-stats four">
@@ -162,6 +165,48 @@ export default function ModelComparison() {
       <div className="cc-stat"><span>Deployed bundle<Info size={17} /></span><strong>{artifact.model_file_bytes ? `${(artifact.model_file_bytes / 1024).toFixed(0)} KB` : '—'}</strong><small>{resp.artifact_model_matches_deployed ? 'Artifact matches the deployed model hash' : 'Artifact does NOT match the deployed bundle — retrain to refresh'} · {artifact.generated_at ? new Date(artifact.generated_at).toLocaleString('en-IN') : ''}</small></div>
     </div>
     {!resp.artifact_model_matches_deployed && <p className="error" role="alert">This comparison artifact was generated for model hash {artifact.model_sha256?.slice(0, 12)}…, but the currently deployed bundle is {resp.deployed_model_sha256?.slice(0, 12)}…. Retrain (npm run data:maharashtra) so the comparison and the deployed models describe the same bundle.</p>}
+    <section className="panel mc-panel" aria-labelledby="confusion-title">
+      <div className="section-header"><div>
+        <h2 id="confusion-title">Failure prediction confusion matrix</h2>
+        <p>{horizon}-day {block.selected.model} · {modeLabel} · Synthetic test observations</p>
+      </div></div>
+      <fieldset className="department-tabs" aria-label="Prediction horizon">
+        {HORIZONS.map(h => <button key={h} type="button" aria-pressed={horizon === h} className={horizon === h ? 'active' : ''} onClick={() => setHorizon(h)}>{h}-day</button>)}
+      </fieldset>
+      <fieldset className="department-tabs" aria-label="Probability source">
+        <button type="button" aria-pressed={useOrdered} className={useOrdered ? 'active' : ''} onClick={() => setCurveMode('ordered')}>Ordered final</button>
+        <button type="button" aria-pressed={!useOrdered} className={!useOrdered ? 'active' : ''} onClick={() => setCurveMode('selected')}>Selected model raw</button>
+      </fieldset>
+      <p className="metric-note">An observation is flagged when its predicted failure probability reaches the selected threshold.</p>
+      <fieldset className="department-tabs" aria-label="Failure probability threshold">
+        {THRESHOLDS.map(t => <button key={t} type="button" aria-pressed={threshold === t} className={threshold === t ? 'active' : ''} onClick={() => setThreshold(t)}>≥ {Number(t) * 100}%</button>)}
+      </fieldset>
+      {matrix ? <>
+        <div className="table-scroll"><table className="zone-queue-table" style={{ maxWidth: 600 }}>
+          <caption>{number(matrix.tp + matrix.fn + matrix.fp + matrix.tn)} observations · {horizon} days · threshold {Number(threshold) * 100}%</caption>
+          <thead><tr><th scope="col">Observed outcome</th><th scope="col">Predicted failure</th><th scope="col">Predicted no failure</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Actual failure</th><td>{number(matrix.tp)} (TP)</td><td>{number(matrix.fn)} (FN)</td></tr>
+            <tr><th scope="row">Actual no failure</th><td>{number(matrix.fp)} (FP)</td><td>{number(matrix.tn)} (TN)</td></tr>
+          </tbody>
+        </table></div>
+        <p className="metric-note">Precision {fmt(matrix.precision, 3)} · Recall {fmt(matrix.recall, 3)} · F1 {fmt(matrix.f1, 3)}</p>
+      </> : <p className="metric-note">No confusion matrix was saved for this selection.</p>}
+    </section>
+    <section className="panel mc-panel"><div className="section-header"><div><h2>Curves and calibration · {horizon}-day horizon</h2><p>{modeLabel}</p></div></div>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <CurveChart title="ROC curve (test)" series={[{ name: `${horizon}-day selected`, points: curves.roc.map(p => [p[0], p[1]]), color: '#2563eb' }]} xLabel="False positive rate" yLabel="True positive rate" />
+          <CurveChart title="Precision–recall curve (test)" series={[{ name: `${horizon}-day selected`, points: curves.precision_recall.map(p => [p[0], p[1]]), color: '#059669' }]} xLabel="Recall" yLabel="Precision" />
+          <CalibrationChart points={calPts} />
+        </div>
+          {m && <p className="metric-note">ROC-AUC {fmt(m.roc_auc)} · PR-AUC {fmt(m.pr_auc)} · Brier {fmt(m.brier, 5)} · ECE {fmt(m.ece)} · prevalence {fmt(m.prevalence, 4)}</p>}
+          {selectedRow && <>
+            <h3 style={{ fontSize: 13 }}>Selected model by department and zone (test)</h3>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+              <div className="table-scroll"><table className="zone-queue-table"><thead><tr><th>Department</th><th>n</th><th>Positives</th><th>ROC-AUC</th><th>Brier</th></tr></thead><tbody>{Object.entries(selectedRow.by_department).map(([g, v]) => <tr key={g}><td>{DEPT_LABELS[g] || g}</td><td>{number(v.n)}</td><td>{number(v.positives)}</td><td>{fmt(v.roc_auc)}</td><td>{fmt(v.brier, 5)}</td></tr>)}</tbody></table></div>
+              <div className="table-scroll"><table className="zone-queue-table"><thead><tr><th>Zone</th><th>n</th><th>Positives</th><th>ROC-AUC</th><th>Brier</th></tr></thead><tbody>{Object.entries(selectedRow.by_zone).map(([g, v]) => <tr key={g}><td>{g}</td><td>{number(v.n)}</td><td>{number(v.positives)}</td><td>{fmt(v.roc_auc)}</td><td>{fmt(v.brier, 5)}</td></tr>)}</tbody></table></div>
+            </div></>}
+    </section>
     <section className="panel mc-panel"><div className="section-header"><div><h2><TrendingUp size={18} /> How models were chosen</h2><p>{artifact.selection.risk} {artifact.selection.duration} {artifact.selection.test_usage}</p></div></div>
       <p className="metric-note">Deployed now — 7-day: <b>{dep.risk['7'].model}</b> ({dep.risk['7'].feature_set} features) · 30-day: <b>{dep.risk['30'].model}</b> ({dep.risk['30'].feature_set}) · 90-day: <b>{dep.risk['90'].model}</b> ({dep.risk['90'].feature_set}) · Duration: <b>{dep.duration.model}</b> ({dep.duration.feature_set}) with a {fmt(dep.buffer_minutes, 1)}-minute validation p90 buffer. Engineered history features evaluated: {artifact.features.engineered_extra.join(', ')}. {artifact.features.engineered_note}</p></section>
 
@@ -176,29 +221,6 @@ export default function ModelComparison() {
       </section>
     })}
 
-    <section className="panel mc-panel"><div className="section-header"><div><h2>Curves, calibration and confusion — {horizon}-day horizon</h2><p>Final ordered probabilities satisfy P(7) ≤ P(30) ≤ P(90) by cumulative maximum; the ordered evaluation below is what the Controller actually stores.</p></div></div>
-      <div className="department-tabs" role="tablist" aria-label="Horizon">{HORIZONS.map(h => <button key={h} type="button" role="tab" aria-selected={horizon === h} className={horizon === h ? 'active' : ''} onClick={() => setHorizon(h)}><span>{h}-day</span></button>)}
-        <button type="button" className={curveMode === 'ordered' ? 'active' : ''} onClick={() => setCurveMode('ordered')}><span>Ordered final</span></button><button type="button" className={curveMode === 'selected' ? 'active' : ''} onClick={() => setCurveMode('selected')}><span>Selected model raw</span></button></div>
-      {(() => {
-        const src = curveMode === 'ordered' ? artifact.ordered_final[horizon] : null; const curves = src ? src.curves : artifact.risk[horizon].selected_curves; const calPts = src ? src.calibration_points : artifact.risk[horizon].selected_calibration_points; const m: ClfMetrics | undefined = src ? src.metrics : selectedRow?.test;
-        return <><div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <CurveChart title="ROC curve (test)" series={[{ name: `${horizon}-day selected`, points: curves.roc.map(p => [p[0], p[1]]), color: '#2563eb' }]} xLabel="False positive rate" yLabel="True positive rate" />
-          <CurveChart title="Precision–recall curve (test)" series={[{ name: `${horizon}-day selected`, points: curves.precision_recall.map(p => [p[0], p[1]]), color: '#059669' }]} xLabel="Recall" yLabel="Precision" />
-          <CalibrationChart points={calPts} />
-        </div>
-          {m && <p className="metric-note">ROC-AUC {fmt(m.roc_auc)} · PR-AUC {fmt(m.pr_auc)} · Brier {fmt(m.brier, 5)} · ECE {fmt(m.ece)} · prevalence {fmt(m.prevalence, 4)}</p>}
-          {selectedRow && <><h3 style={{ fontSize: 13 }}>Confusion matrix — selected model at threshold {threshold}</h3>
-            <div className="department-tabs" role="tablist" aria-label="Threshold">{THRESHOLDS.map(t => <button key={t} type="button" role="tab" aria-selected={threshold === t} className={threshold === t ? 'active' : ''} onClick={() => setThreshold(t)}><span>≥ {t}</span></button>)}</div>
-            {(() => { const c = thresholdAt(selectedRow.test, threshold); return c ? <div className="table-scroll"><table className="zone-queue-table" style={{ maxWidth: 520 }}><thead><tr><th>Observed outcome</th><th>Predicted failure</th><th>Predicted no failure</th></tr></thead><tbody><tr><th>Actual failure</th><td>{number(c.tp)}</td><td>{number(c.fn)}</td></tr><tr><th>Actual no failure</th><td>{number(c.fp)}</td><td>{number(c.tn)}</td></tr></tbody></table></div> : <p className="metric-note">No confusion data stored for this threshold.</p> })()}
-            <p className="metric-note">Precision {fmt(thresholdAt(selectedRow.test, threshold)?.precision, 3)} · Recall {fmt(thresholdAt(selectedRow.test, threshold)?.recall, 3)} · F1 {fmt(thresholdAt(selectedRow.test, threshold)?.f1, 3)} at this threshold. At strict thresholds these models flag almost nothing — they are used as rankers for the Criticality Index, not as alerting classifiers.</p>
-            <h3 style={{ fontSize: 13 }}>Selected model by department and zone (test)</h3>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <div className="table-scroll"><table className="zone-queue-table"><thead><tr><th>Department</th><th>n</th><th>Positives</th><th>ROC-AUC</th><th>Brier</th></tr></thead><tbody>{Object.entries(selectedRow.by_department).map(([g, v]) => <tr key={g}><td>{DEPT_LABELS[g] || g}</td><td>{number(v.n)}</td><td>{number(v.positives)}</td><td>{fmt(v.roc_auc)}</td><td>{fmt(v.brier, 5)}</td></tr>)}</tbody></table></div>
-              <div className="table-scroll"><table className="zone-queue-table"><thead><tr><th>Zone</th><th>n</th><th>Positives</th><th>ROC-AUC</th><th>Brier</th></tr></thead><tbody>{Object.entries(selectedRow.by_zone).map(([g, v]) => <tr key={g}><td>{g}</td><td>{number(v.n)}</td><td>{number(v.positives)}</td><td>{fmt(v.roc_auc)}</td><td>{fmt(v.brier, 5)}</td></tr>)}</tbody></table></div>
-            </div></>}
-        </>
-      })()}
-    </section>
 
     <section className="panel mc-panel"><div className="section-header"><div><h2>Feature importance (permutation, validation)</h2><p>How much validation Brier worsens when a feature is shuffled. Duplicated signals split importance between them — overdue_days is exactly max(0, last_maintenance_days − 120), and inspection_measurement is a rescaled copy of the same noisy reading as deterioration.</p></div></div>
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>{Object.entries(artifact.risk[horizon].feature_importance).map(([name, data]) => <ImportanceBars key={name} title={name} data={data} />)}</div>
